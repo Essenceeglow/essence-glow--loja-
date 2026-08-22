@@ -12,11 +12,11 @@ export default function Footer() {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-pink-300" />
               <h3 className="font-serif text-lg font-bold text-foreground">
-                Beauty & Fashion
+                Essence & Glow
               </h3>
             </div>
             <p className="text-sm text-muted-foreground">
-              Beleza e moda íntima feminina com elegância e sofisticação.
+              Skincare selecionado com cuidado para você se sentir incrível.
             </p>
           </div>
 
@@ -24,7 +24,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-foreground mb-4">Categorias</h4>
             <ul className="space-y-2">
-              {["Maquiagem", "Skincare", "Pijamas", "Lingerie"].map((cat) => (
+              {["Skincare"].map((cat) => (
                 <li key={cat}>
                   <Link href={`/catalog?category=${cat.toLowerCase()}`}>
                     <a className="text-sm text-muted-foreground hover:text-accent transition-smooth">
@@ -40,7 +40,7 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-foreground mb-4">Atendimento</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="mailto:contato@beautyandashion.com" className="hover:text-accent transition-smooth">contato@beautyandashion.com</a></li>
+              <li><a href="mailto:contato@essenceglow.com" className="hover:text-accent transition-smooth">contato@essenceglow.com</a></li>
               <li><a href="tel:+5511999999999" className="hover:text-accent transition-smooth">(11) 99999-9999</a></li>
               <li className="pt-2">Segunda a Sexta: 9h às 18h</li>
             </ul>
@@ -66,7 +66,7 @@ export default function Footer() {
         {/* Divider */}
         <div className="border-t border-border pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>&copy; {currentYear} Beauty & Fashion. Todos os direitos reservados.</p>
+            <p>&copy; {currentYear} Essence & Glow. Todos os direitos reservados.</p>
             <div className="flex gap-6">
               <a href="#" className="hover:text-accent transition-smooth">
                 Política de Privacidade

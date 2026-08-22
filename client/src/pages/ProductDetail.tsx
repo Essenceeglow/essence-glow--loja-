@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
-import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,7 +45,6 @@ export default function ProductDetail() {
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-accent" />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -62,7 +60,6 @@ export default function ProductDetail() {
             </Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -272,8 +269,6 @@ export default function ProductDetail() {
           </Tabs>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 }
