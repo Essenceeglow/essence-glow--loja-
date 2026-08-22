@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useParams, Link } from "wouter";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,7 +43,6 @@ export default function ProductDetail() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Header cartCount={0} />
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-accent" />
         </main>
@@ -56,7 +54,6 @@ export default function ProductDetail() {
   if (!product) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <Header cartCount={0} />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-lg text-muted-foreground">Produto não encontrado</p>
@@ -72,8 +69,6 @@ export default function ProductDetail() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header cartCount={0} />
-
       <main className="flex-1">
         <div className="container py-12">
           {/* Breadcrumb */}

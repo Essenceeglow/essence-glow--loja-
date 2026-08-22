@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -59,7 +58,6 @@ export default function Login() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header cartCount={0} onCartClick={() => {}} />
       <main className="flex-1 flex items-center justify-center py-16 px-4">
         <Card className="w-full max-w-sm p-8">
           <h1 className="text-2xl font-serif font-bold text-foreground mb-1 text-center">

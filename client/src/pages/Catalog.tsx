@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useSearch } from "wouter";
 import { Link } from "wouter";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,7 +38,6 @@ export default function Catalog() {
 
   return (
     <>
-      <Header cartCount={0} />
       <main className="flex-1">
         <div className="container py-12">
           <div className="mb-8">

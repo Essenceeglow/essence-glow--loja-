@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -71,8 +70,6 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header cartCount={0} />
-
       <main className="flex-1">
         <div className="container py-12">
           {/* Page Header */}
