@@ -1,17 +1,32 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Lock, Truck, CreditCard } from "lucide-react";
+import { Truck, Loader2, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+import type { CartItem } from "@/App";
+
+const CART_STORAGE_KEY = "essence-glow-cart";
+
+function loadCart(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function Checkout() {
-  const [step, setStep] = useState<"address" | "payment" | "review">("address");
+  const [, navigate] = useLocation();
+  const [step, setStep] = useState<"address" | "review">("address");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cartItems] = useState<CartItem[]>(loadCart);
+
   const [formData, setFormData] = useState({
     fullName: "",
-    email: "",
     phone: "",
     cep: "",
     street: "",
@@ -21,21 +36,12 @@ export default function Checkout() {
     state: "",
   });
 
-  const [cardData, setCardData] = useState({
-    cardNumber: "",
-    cardName: "",
-    expiry: "",
-    cvc: "",
-  });
-
-  // Mock cart items
-  const cartItems = [
-    { id: 1, name: "Blush em Stick", price: 89.90, quantity: 1, image: "🎨" },
-    { id: 2, name: "Sérum Corporal", price: 129.90, quantity: 1, image: "✨" },
-  ];
+  const createAddress = trpc.addresses.create.useMutation();
+  const createOrder = trpc.orders.create.useMutation();
+  const createPreference = trpc.payments.createPreference.useMutation();
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = 15;
+  const shipping = subtotal >= 100 || subtotal === 0 ? 0 : 15;
   const total = subtotal + shipping;
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -43,40 +49,87 @@ export default function Checkout() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCardData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmitOrder = () => {
-    if (!formData.fullName || !formData.email || !formData.cep || !formData.street) {
+  const handleContinue = () => {
+    if (!formData.fullName || !formData.cep || !formData.street || !formData.number || !formData.city || !formData.state) {
       toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
+    setStep("review");
+  };
 
-    if (step === "address") {
-      setStep("payment");
-    } else if (step === "payment") {
-      if (!cardData.cardNumber || !cardData.cardName || !cardData.expiry || !cardData.cvc) {
-        toast.error("Por favor, preencha os dados do cartão");
-        return;
-      }
-      setStep("review");
-    } else {
-      toast.success("Pedido realizado com sucesso!");
-      // Aqui seria chamado o tRPC para criar o pedido
+  const handleFinish = async () => {
+    if (cartItems.length === 0) {
+      toast.error("Seu carrinho está vazio");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 1. Salva o endereço de entrega
+      const addressResult = await createAddress.mutateAsync({
+        fullName: formData.fullName,
+        phone: formData.phone,
+        cep: formData.cep,
+        street: formData.street,
+        number: formData.number,
+        complement: formData.complement,
+        city: formData.city,
+        state: formData.state,
+        isDefault: true,
+      });
+
+      // 2. Cria o pedido (fica como "pending" até o pagamento ser confirmado)
+      const orderResult = await createOrder.mutateAsync({
+        addressId: addressResult.id,
+        items: cartItems.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        totalAmount: total,
+        shippingCost: shipping,
+        paymentMethod: "mercadopago",
+      });
+
+      // 3. Gera o link de pagamento do Mercado Pago
+      const preference = await createPreference.mutateAsync({
+        orderId: orderResult.orderId,
+      });
+
+      // 4. Esvazia o carrinho e leva o cliente para o pagamento
+      localStorage.removeItem(CART_STORAGE_KEY);
+      window.dispatchEvent(new CustomEvent("clearCart"));
+
+      window.location.href = preference.checkoutUrl;
+    } catch (error: any) {
+      toast.error(error?.message || "Não foi possível finalizar o pedido. Tente novamente.");
+      setIsSubmitting(false);
     }
   };
+
+  if (cartItems.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-sm px-4">
+            <ShoppingBag className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h1 className="text-2xl font-serif font-bold text-foreground mb-2">
+              Seu carrinho está vazio
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              Adicione produtos ao carrinho antes de finalizar a compra.
+            </p>
+            <Button onClick={() => navigate("/catalog")}>Explorar Catálogo</Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <main className="flex-1">
         <div className="container py-12">
-          {/* Page Header */}
           <div className="mb-12">
             <h1 className="text-3xl md:text-4xl font-serif font-bold text-foreground mb-2">
               Checkout
@@ -87,28 +140,25 @@ export default function Checkout() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-2">
               {/* Steps */}
-              <div className="mb-12">
-                <div className="flex gap-4 mb-8">
-                  {["address", "payment", "review"].map((s, idx) => (
-                    <div key={s} className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-smooth ${
-                          step === s
-                            ? "bg-accent text-white"
-                            : ["address", "payment", "review"].indexOf(step) > idx
-                            ? "bg-green-500 text-white"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {idx + 1}
-                      </div>
-                      {idx < 2 && <div className="w-8 h-1 bg-border" />}
+              <div className="mb-8 flex gap-4">
+                {["address", "review"].map((s, idx) => (
+                  <div key={s} className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-smooth ${
+                        step === s
+                          ? "bg-accent text-white"
+                          : ["address", "review"].indexOf(step) > idx
+                          ? "bg-green-500 text-white"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {idx + 1}
                     </div>
-                  ))}
-                </div>
+                    {idx < 1 && <div className="w-8 h-1 bg-border" />}
+                  </div>
+                ))}
               </div>
 
               {/* Address Step */}
@@ -119,31 +169,16 @@ export default function Checkout() {
                   </h2>
 
                   <div className="space-y-6">
-                    {/* Personal Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-semibold text-foreground mb-2 block">
-                          Nome Completo *
-                        </label>
-                        <Input
-                          name="fullName"
-                          value={formData.fullName}
-                          onChange={handleAddressChange}
-                          placeholder="Seu nome"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-semibold text-foreground mb-2 block">
-                          Email *
-                        </label>
-                        <Input
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleAddressChange}
-                          placeholder="seu@email.com"
-                        />
-                      </div>
+                    <div>
+                      <label className="text-sm font-semibold text-foreground mb-2 block">
+                        Nome Completo *
+                      </label>
+                      <Input
+                        name="fullName"
+                        value={formData.fullName}
+                        onChange={handleAddressChange}
+                        placeholder="Seu nome"
+                      />
                     </div>
 
                     <div>
@@ -158,7 +193,6 @@ export default function Checkout() {
                       />
                     </div>
 
-                    {/* Address */}
                     <div>
                       <label className="text-sm font-semibold text-foreground mb-2 block">
                         CEP *
@@ -204,12 +238,12 @@ export default function Checkout() {
                         name="complement"
                         value={formData.complement}
                         onChange={handleAddressChange}
-                        placeholder="Apto, sala, etc."
+                        placeholder="Apto, bloco, referência..."
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="md:col-span-2">
                         <label className="text-sm font-semibold text-foreground mb-2 block">
                           Cidade *
                         </label>
@@ -217,7 +251,7 @@ export default function Checkout() {
                           name="city"
                           value={formData.city}
                           onChange={handleAddressChange}
-                          placeholder="São Paulo"
+                          placeholder="Sua cidade"
                         />
                       </div>
                       <div>
@@ -237,94 +271,6 @@ export default function Checkout() {
                 </Card>
               )}
 
-              {/* Payment Step */}
-              {step === "payment" && (
-                <Card className="p-8 mb-8">
-                  <h2 className="text-2xl font-serif font-bold text-foreground mb-6">
-                    Método de Pagamento
-                  </h2>
-
-                  <Tabs defaultValue="card" className="mb-8">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="card" className="gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        Cartão de Crédito
-                      </TabsTrigger>
-                      <TabsTrigger value="pix" className="gap-2">
-                        Pix
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="card" className="space-y-6">
-                      <div>
-                        <label className="text-sm font-semibold text-foreground mb-2 block">
-                          Número do Cartão
-                        </label>
-                        <Input
-                          name="cardNumber"
-                          value={cardData.cardNumber}
-                          onChange={handleCardChange}
-                          placeholder="0000 0000 0000 0000"
-                          maxLength={19}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-semibold text-foreground mb-2 block">
-                          Nome no Cartão
-                        </label>
-                        <Input
-                          name="cardName"
-                          value={cardData.cardName}
-                          onChange={handleCardChange}
-                          placeholder="NOME SOBRENOME"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-semibold text-foreground mb-2 block">
-                            Validade
-                          </label>
-                          <Input
-                            name="expiry"
-                            value={cardData.expiry}
-                            onChange={handleCardChange}
-                            placeholder="MM/AA"
-                            maxLength={5}
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-semibold text-foreground mb-2 block">
-                            CVC
-                          </label>
-                          <Input
-                            name="cvc"
-                            value={cardData.cvc}
-                            onChange={handleCardChange}
-                            placeholder="123"
-                            maxLength={3}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex gap-3">
-                        <Lock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-blue-700">
-                          Seus dados de pagamento são criptografados e seguros. Processado via Stripe.
-                        </p>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="pix" className="py-8">
-                      <p className="text-muted-foreground text-center">
-                        Pix será disponibilizado em breve. Por enquanto, use cartão de crédito.
-                      </p>
-                    </TabsContent>
-                  </Tabs>
-                </Card>
-              )}
-
               {/* Review Step */}
               {step === "review" && (
                 <Card className="p-8 mb-8">
@@ -336,17 +282,20 @@ export default function Checkout() {
                     <div>
                       <h3 className="font-semibold text-foreground mb-3">Endereço de Entrega</h3>
                       <p className="text-muted-foreground text-sm">
+                        {formData.fullName}
+                        <br />
                         {formData.street}, {formData.number}
                         {formData.complement && ` - ${formData.complement}`}
                         <br />
-                        {formData.city}, {formData.state} {formData.cep}
+                        {formData.city}, {formData.state} - {formData.cep}
                       </p>
                     </div>
 
                     <div className="border-t border-border pt-6">
-                      <h3 className="font-semibold text-foreground mb-3">Método de Pagamento</h3>
+                      <h3 className="font-semibold text-foreground mb-3">Pagamento</h3>
                       <p className="text-muted-foreground text-sm">
-                        Cartão terminado em {cardData.cardNumber.slice(-4)}
+                        No próximo passo você será redirecionado para o Mercado Pago, onde pode
+                        pagar com Pix, cartão de crédito ou boleto, com total segurança.
                       </p>
                     </div>
                   </div>
@@ -355,22 +304,26 @@ export default function Checkout() {
 
               {/* Navigation Buttons */}
               <div className="flex gap-4">
-                {step !== "address" && (
+                {step === "review" && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (step === "payment") setStep("address");
-                      else if (step === "review") setStep("payment");
-                    }}
+                    onClick={() => setStep("address")}
+                    disabled={isSubmitting}
                   >
                     Voltar
                   </Button>
                 )}
                 <Button
-                  className="flex-1"
-                  onClick={handleSubmitOrder}
+                  className="flex-1 gap-2"
+                  onClick={step === "address" ? handleContinue : handleFinish}
+                  disabled={isSubmitting}
                 >
-                  {step === "review" ? "Confirmar Pedido" : "Próximo"}
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {step === "review"
+                    ? isSubmitting
+                      ? "Redirecionando para pagamento..."
+                      : "Ir para Pagamento"
+                    : "Próximo"}
                 </Button>
               </div>
             </div>
@@ -385,8 +338,12 @@ export default function Checkout() {
                 <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
                   {cartItems.map((item) => (
                     <div key={item.id} className="flex gap-3">
-                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center text-lg flex-shrink-0">
-                        {item.image}
+                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {item.image?.startsWith("http") || item.image?.startsWith("/") ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg">{item.image || "🛍️"}</span>
+                        )}
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-foreground">{item.name}</p>
@@ -405,7 +362,9 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Frete</span>
-                    <span className="font-semibold">R$ {shipping.toFixed(2)}</span>
+                    <span className="font-semibold">
+                      {shipping === 0 ? "Grátis" : `R$ ${shipping.toFixed(2)}`}
+                    </span>
                   </div>
                   <div className="flex justify-between text-lg font-bold border-t border-border pt-3">
                     <span>Total</span>
@@ -413,12 +372,14 @@ export default function Checkout() {
                   </div>
                 </div>
 
-                <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg flex gap-2">
-                  <Truck className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  <p className="text-xs text-green-700">
-                    Frete grátis em compras acima de R$ 100
-                  </p>
-                </div>
+                {shipping > 0 && (
+                  <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg flex gap-2">
+                    <Truck className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <p className="text-xs text-green-700">
+                      Frete grátis em compras acima de R$ 100
+                    </p>
+                  </div>
+                )}
               </Card>
             </div>
           </div>

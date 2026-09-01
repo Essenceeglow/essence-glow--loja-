@@ -23,14 +23,14 @@ export default function Profile() {
       date: "2026-07-05",
       total: 219.80,
       status: "Entregue",
-      items: ["Blush em Stick", "Sérum Corporal"],
+      items: ["Sérum Facial Colágeno", "Sérum Corporal Retinol"],
     },
     {
       id: "PED-002",
       date: "2026-06-28",
-      total: 189.90,
+      total: 89.90,
       status: "Em Trânsito",
-      items: ["Pijama de Seda"],
+      items: ["Máscara Facial Hidratante"],
     },
   ];
 

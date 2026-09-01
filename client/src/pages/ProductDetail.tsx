@@ -3,7 +3,7 @@ import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Heart, Share2, Star, ShoppingBag, Loader2 } from "lucide-react";
+import { Heart, Share2, Star, ShoppingBag, Loader2, X, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 
@@ -11,6 +11,8 @@ export default function ProductDetail() {
   const { id } = useParams();
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   // Buscar produto real do banco de dados
   const { data: product, isLoading } = trpc.products.getById.useQuery(
@@ -84,28 +86,45 @@ export default function ProductDetail() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
             {/* Product Images */}
             <div>
-              <div className="bg-gradient-to-br from-muted to-muted/50 rounded-lg p-8 mb-4 h-96 flex items-center justify-center text-6xl overflow-hidden">
+              <div
+                className="bg-gradient-to-br from-muted to-muted/50 rounded-lg p-8 mb-4 h-96 flex items-center justify-center text-6xl overflow-hidden cursor-zoom-in relative group"
+                onClick={() => product.images && product.images.length > 0 && setIsLightboxOpen(true)}
+              >
                 {product.images && product.images.length > 0 ? (
-                  <img 
-                    src={product.images[0]} 
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <>
+                    <img
+                      src={product.images[selectedImageIndex]}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-smooth flex items-center justify-center">
+                      <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-smooth drop-shadow" />
+                    </div>
+                  </>
                 ) : (
                   <span>📦</span>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                {product.images && product.images.map((image: string, idx: number) => (
-                  <div key={idx} className="bg-muted rounded-lg p-4 h-24 flex items-center justify-center text-3xl overflow-hidden cursor-pointer hover:opacity-80">
-                    <img 
-                      src={image} 
-                      alt={`${product.name} ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
+              {product.images && product.images.length > 1 && (
+                <div className="grid grid-cols-3 gap-4">
+                  {product.images.map((image: string, idx: number) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(idx)}
+                      className={`bg-muted rounded-lg p-4 h-24 flex items-center justify-center text-3xl overflow-hidden cursor-pointer hover:opacity-80 transition-smooth border-2 ${
+                        selectedImageIndex === idx ? "border-accent" : "border-transparent"
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt={`${product.name} ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Product Info */}
@@ -269,6 +288,63 @@ export default function ProductDetail() {
           </Tabs>
         </div>
       </main>
+
+      {/* Lightbox - visualização em tela cheia das fotos */}
+      {isLightboxOpen && product.images && product.images.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <button
+            type="button"
+            className="absolute top-6 right-6 text-white/80 hover:text-white transition-smooth"
+            onClick={() => setIsLightboxOpen(false)}
+          >
+            <X className="w-8 h-8" />
+          </button>
+
+          {product.images.length > 1 && (
+            <button
+              type="button"
+              className="absolute left-4 md:left-8 text-white/80 hover:text-white transition-smooth"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImageIndex(
+                  (selectedImageIndex - 1 + product.images.length) % product.images.length
+                );
+              }}
+            >
+              <ChevronLeft className="w-10 h-10" />
+            </button>
+          )}
+
+          <img
+            src={product.images[selectedImageIndex]}
+            alt={product.name}
+            className="max-h-[85vh] max-w-[85vw] object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {product.images.length > 1 && (
+            <button
+              type="button"
+              className="absolute right-4 md:right-8 text-white/80 hover:text-white transition-smooth"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImageIndex((selectedImageIndex + 1) % product.images.length);
+              }}
+            >
+              <ChevronRight className="w-10 h-10" />
+            </button>
+          )}
+
+          {product.images.length > 1 && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-sm">
+              {selectedImageIndex + 1} / {product.images.length}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

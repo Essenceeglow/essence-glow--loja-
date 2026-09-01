@@ -3,9 +3,10 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getDb } from "./db";
-import { categories, products, productVariants, orders, orderItems, userAddresses, productReviews } from "../drizzle/schema";
+import { categories, products, productVariants, orders, orderItems, userAddresses, productReviews, productBundles, bundleItems } from "../drizzle/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { COOKIE_NAME } from "../shared/const";
+import { createPaymentPreference } from "./_core/mercadoPago";
 
 export const appRouter = router({
   system: systemRouter,
@@ -181,6 +182,166 @@ export const appRouter = router({
       }),
   }),
 
+  bundles: router({
+    // Lista pública, usada na home ("Compre o Look")
+    list: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      try {
+        const result = await db.select().from(productBundles);
+        return result;
+      } catch (error) {
+        console.error("Error fetching bundles:", error);
+        return [];
+      }
+    }),
+
+    getById: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return null;
+        try {
+          const [bundle] = await db
+            .select()
+            .from(productBundles)
+            .where(eq(productBundles.id, input.id))
+            .limit(1);
+          if (!bundle) return null;
+
+          const items = await db
+            .select()
+            .from(bundleItems)
+            .where(eq(bundleItems.bundleId, input.id));
+
+          return { ...bundle, items };
+        } catch (error) {
+          console.error("Error fetching bundle:", error);
+          return null;
+        }
+      }),
+
+    adminGetAll: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+      const db = await getDb();
+      if (!db) return [];
+      try {
+        const bundles = await db.select().from(productBundles);
+        const allItems = await db.select().from(bundleItems);
+        return bundles.map((bundle) => ({
+          ...bundle,
+          items: allItems.filter((item) => item.bundleId === bundle.id),
+        }));
+      } catch (error) {
+        console.error("Error fetching bundles:", error);
+        return [];
+      }
+    }),
+
+    adminCreate: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        bundlePrice: z.string(),
+        image: z.string().optional(),
+        featured: z.number().optional(),
+        productIds: z.array(z.object({
+          productId: z.number(),
+          quantity: z.number().default(1),
+        })).min(1, "Selecione ao menos um produto para o bundle"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          const [bundle] = await db.insert(productBundles).values({
+            name: input.name,
+            description: input.description,
+            bundlePrice: input.bundlePrice as any,
+            image: input.image,
+            featured: input.featured ?? 0,
+          }).returning({ id: productBundles.id });
+
+          for (const item of input.productIds) {
+            await db.insert(bundleItems).values({
+              bundleId: bundle.id,
+              productId: item.productId,
+              quantity: item.quantity,
+            });
+          }
+
+          return { success: true, id: bundle.id };
+        } catch (error) {
+          console.error("Error creating bundle:", error);
+          throw error;
+        }
+      }),
+
+    adminUpdate: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        bundlePrice: z.string().optional(),
+        image: z.string().optional(),
+        featured: z.number().optional(),
+        productIds: z.array(z.object({
+          productId: z.number(),
+          quantity: z.number().default(1),
+        })).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          const updateData: any = {};
+          if (input.name !== undefined) updateData.name = input.name;
+          if (input.description !== undefined) updateData.description = input.description;
+          if (input.bundlePrice !== undefined) updateData.bundlePrice = input.bundlePrice;
+          if (input.image !== undefined) updateData.image = input.image;
+          if (input.featured !== undefined) updateData.featured = input.featured;
+
+          if (Object.keys(updateData).length > 0) {
+            await db.update(productBundles).set(updateData).where(eq(productBundles.id, input.id));
+          }
+
+          if (input.productIds) {
+            await db.delete(bundleItems).where(eq(bundleItems.bundleId, input.id));
+            for (const item of input.productIds) {
+              await db.insert(bundleItems).values({
+                bundleId: input.id,
+                productId: item.productId,
+                quantity: item.quantity,
+              });
+            }
+          }
+
+          return { success: true };
+        } catch (error) {
+          console.error("Error updating bundle:", error);
+          throw error;
+        }
+      }),
+
+    adminDelete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          await db.delete(bundleItems).where(eq(bundleItems.bundleId, input.id));
+          await db.delete(productBundles).where(eq(productBundles.id, input.id));
+          return { success: true };
+        } catch (error) {
+          console.error("Error deleting bundle:", error);
+          throw error;
+        }
+      }),
+  }),
+
   addresses: router({
     list: protectedProcedure.query(async ({ ctx }) => {
       const db = await getDb();
@@ -213,7 +374,7 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error('Database not available');
         try {
-          await db.insert(userAddresses).values({
+          const [inserted] = await db.insert(userAddresses).values({
             userId: ctx.user.id,
             fullName: input.fullName,
             phone: input.phone,
@@ -224,8 +385,8 @@ export const appRouter = router({
             city: input.city,
             state: input.state,
             isDefault: input.isDefault ? 1 : 0,
-          });
-          return { success: true };
+          }).returning({ id: userAddresses.id });
+          return { success: true, id: inserted.id };
         } catch (error) {
           console.error("Error creating address:", error);
           throw error;
@@ -292,6 +453,66 @@ export const appRouter = router({
           return { success: true, orderId, orderNumber };
         } catch (error) {
           console.error("Error creating order:", error);
+          throw error;
+        }
+      }),
+  }),
+
+  payments: router({
+    // Cria a preferência de pagamento no Mercado Pago para um pedido já criado
+    // e retorna a URL de checkout para redirecionar o cliente.
+    createPreference: protectedProcedure
+      .input(z.object({
+        orderId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          const [order] = await db
+            .select()
+            .from(orders)
+            .where(eq(orders.id, input.orderId))
+            .limit(1);
+
+          if (!order || order.userId !== ctx.user.id) {
+            throw new Error('Pedido não encontrado');
+          }
+
+          const items = await db
+            .select()
+            .from(orderItems)
+            .where(eq(orderItems.orderId, input.orderId));
+
+          const productRows = await db.select().from(products);
+          const productMap = new Map(productRows.map((p) => [p.id, p]));
+
+          const preferenceItems = items.map((item) => ({
+            id: String(item.productId),
+            title: productMap.get(item.productId)?.name ?? `Produto #${item.productId}`,
+            quantity: item.quantity,
+            unit_price: parseFloat(item.price as any),
+          }));
+
+          const { checkoutUrl, preferenceId } = await createPaymentPreference({
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            items: preferenceItems,
+            shippingCost: parseFloat((order.shippingCost as any) ?? '0'),
+            payerEmail: ctx.user.email,
+          });
+
+          if (!checkoutUrl) {
+            throw new Error('Não foi possível gerar o link de pagamento');
+          }
+
+          await db.update(orders)
+            .set({ paymentMethod: 'mercadopago' })
+            .where(eq(orders.id, order.id));
+
+          return { checkoutUrl, preferenceId };
+        } catch (error) {
+          console.error("Error creating payment preference:", error);
           throw error;
         }
       }),

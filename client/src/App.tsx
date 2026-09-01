@@ -27,9 +27,29 @@ export interface CartItem {
   image?: string;
 }
 
+const CART_STORAGE_KEY = "essence-glow-cart";
+
+function loadCartFromStorage(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 function Router() {
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(loadCartFromStorage);
+
+  // Mantém o carrinho salvo no navegador, para não sumir ao atualizar a página.
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
+    } catch {
+      // localStorage indisponível (modo privado, etc.) - segue sem persistir
+    }
+  }, [cartItems]);
 
   // Escutar eventos de adicionar ao carrinho
   React.useEffect(() => {
@@ -54,8 +74,18 @@ function Router() {
       setIsCartOpen(true);
     };
 
+    // Permite que outras páginas (ex: Checkout, após finalizar o pedido)
+    // avisem que o carrinho deve ser esvaziado.
+    const handleClearCartEvent = () => {
+      setCartItems([]);
+    };
+
     window.addEventListener('addToCart', handleAddToCartEvent);
-    return () => window.removeEventListener('addToCart', handleAddToCartEvent);
+    window.addEventListener('clearCart', handleClearCartEvent);
+    return () => {
+      window.removeEventListener('addToCart', handleAddToCartEvent);
+      window.removeEventListener('clearCart', handleClearCartEvent);
+    };
   }, []);
 
 

@@ -29,6 +29,15 @@ export default function Admin() {
   const [reviews, setReviews] = useState<Array<{ author: string; rating: number; comment: string }>>([]);
   const [reviewForm, setReviewForm] = useState({ author: "", rating: 5, comment: "" });
 
+  // Bundles ("Compre o Look")
+  const [bundleForm, setBundleForm] = useState({
+    name: "",
+    description: "",
+    bundlePrice: "",
+    image: "",
+  });
+  const [selectedBundleProducts, setSelectedBundleProducts] = useState<number[]>([]);
+
   const allProducts = trpc.products.adminGetAll.useQuery(undefined, {
     enabled: user?.role === "admin",
   });
@@ -71,6 +80,32 @@ export default function Admin() {
     },
     onError: (error) => {
       toast.error(`Erro ao deletar produto: ${error.message}`);
+    },
+  });
+
+  const allBundles = trpc.bundles.adminGetAll.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
+
+  const createBundle = trpc.bundles.adminCreate.useMutation({
+    onSuccess: () => {
+      toast.success("Bundle criado com sucesso!");
+      allBundles.refetch();
+      setBundleForm({ name: "", description: "", bundlePrice: "", image: "" });
+      setSelectedBundleProducts([]);
+    },
+    onError: (error) => {
+      toast.error(`Erro ao criar bundle: ${error.message}`);
+    },
+  });
+
+  const deleteBundle = trpc.bundles.adminDelete.useMutation({
+    onSuccess: () => {
+      toast.success("Bundle deletado com sucesso!");
+      allBundles.refetch();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao deletar bundle: ${error.message}`);
     },
   });
 
@@ -164,14 +199,38 @@ export default function Admin() {
     toast.success("Avaliação removida!");
   };
 
+  const toggleBundleProduct = (productId: number) => {
+    setSelectedBundleProducts((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleCreateBundle = () => {
+    if (!bundleForm.name || !bundleForm.bundlePrice) {
+      toast.error("Preencha nome e preço do bundle");
+      return;
+    }
+    if (selectedBundleProducts.length === 0) {
+      toast.error("Selecione ao menos um produto para o bundle");
+      return;
+    }
+    createBundle.mutate({
+      ...bundleForm,
+      productIds: selectedBundleProducts.map((productId) => ({ productId, quantity: 1 })),
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-lavender-50 via-rose-50 to-mint-50 p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-slate-purple mb-8">Painel de Administração</h1>
 
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="products">Produtos</TabsTrigger>
+            <TabsTrigger value="bundles">Bundles</TabsTrigger>
             <TabsTrigger value="reviews">Avaliações</TabsTrigger>
           </TabsList>
 
@@ -222,7 +281,6 @@ export default function Admin() {
                       <SelectContent>
                         <SelectItem value="1">Maquiagem</SelectItem>
                         <SelectItem value="2">Skincare</SelectItem>
-                        <SelectItem value="3">Pijamas</SelectItem>
                         <SelectItem value="4">Lingerie</SelectItem>
                       </SelectContent>
                     </Select>
@@ -409,6 +467,134 @@ export default function Admin() {
                     </TableBody>
                   </Table>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Bundles ("Compre o Look") */}
+          <TabsContent value="bundles" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Criar Novo Bundle</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Nome do Bundle *</Label>
+                    <Input
+                      value={bundleForm.name}
+                      onChange={(e) => setBundleForm({ ...bundleForm, name: e.target.value })}
+                      placeholder="Ex: Kit Rotina Noturna"
+                    />
+                  </div>
+                  <div>
+                    <Label>Preço do Bundle (R$) *</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={bundleForm.bundlePrice}
+                      onChange={(e) => setBundleForm({ ...bundleForm, bundlePrice: e.target.value })}
+                      placeholder="149.90"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Descrição</Label>
+                  <Textarea
+                    value={bundleForm.description}
+                    onChange={(e) => setBundleForm({ ...bundleForm, description: e.target.value })}
+                    placeholder="Descreva o combo de produtos"
+                  />
+                </div>
+                <div>
+                  <Label>URL da Imagem</Label>
+                  <Input
+                    value={bundleForm.image}
+                    onChange={(e) => setBundleForm({ ...bundleForm, image: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div>
+                  <Label>Produtos que fazem parte do bundle *</Label>
+                  {allProducts.data && allProducts.data.length > 0 ? (
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-y-auto border rounded-md p-3">
+                      {allProducts.data.map((product) => (
+                        <label
+                          key={product.id}
+                          className={`flex items-center gap-2 p-2 rounded-md cursor-pointer border text-sm ${
+                            selectedBundleProducts.includes(product.id)
+                              ? "border-accent bg-accent/10"
+                              : "border-transparent hover:bg-muted"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedBundleProducts.includes(product.id)}
+                            onChange={() => toggleBundleProduct(product.id)}
+                            className="accent-accent"
+                          />
+                          {product.name} — R$ {parseFloat(product.price as any).toFixed(2)}
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Cadastre produtos na aba "Produtos" antes de criar um bundle.
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  onClick={handleCreateBundle}
+                  disabled={createBundle.isPending}
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {createBundle.isPending ? "Criando..." : "Criar Bundle"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bundles Cadastrados ({allBundles.data?.length ?? 0})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!allBundles.data || allBundles.data.length === 0 ? (
+                  <p className="text-muted-foreground">Nenhum bundle cadastrado ainda.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Preço</TableHead>
+                          <TableHead>Produtos</TableHead>
+                          <TableHead>Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {allBundles.data.map((bundle: any) => (
+                          <TableRow key={bundle.id}>
+                            <TableCell>{bundle.name}</TableCell>
+                            <TableCell>R$ {parseFloat(bundle.bundlePrice).toFixed(2)}</TableCell>
+                            <TableCell>{bundle.items?.length ?? 0} produto(s)</TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteBundle.mutate({ id: bundle.id })}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

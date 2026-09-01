@@ -30,17 +30,17 @@ export default function Home() {
     },
     {
       id: 3,
-      name: "Pijama de Seda Outerwear",
-      price: "R$ 189,90",
-      image: "🌙",
+      name: "Água Micelar Suave",
+      price: "R$ 42,90",
+      image: "💦",
       rating: 4.7,
     },
     {
       id: 4,
-      name: "Kit Lingerie Sem Costura",
-      price: "R$ 99,90",
-      image: "💎",
-      rating: 4.6,
+      name: "Protetor Solar Facial FPS 60",
+      price: "R$ 69,90",
+      image: "☀️",
+      rating: 4.9,
     },
   ];
 
@@ -55,7 +55,7 @@ export default function Home() {
                 Beleza e Elegância em Cada Detalhe
               </h1>
               <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                Descubra nossa coleção exclusiva de skincare, pijamas e lingerie. Produtos selecionados com cuidado para você se sentir incrível.
+                Descubra nossa coleção exclusiva de skincare. Produtos selecionados com cuidado para você se sentir incrível.
               </p>
               <div className="flex gap-4">
                 <Link href="/catalog">
