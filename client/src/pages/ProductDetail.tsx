@@ -29,9 +29,15 @@ export default function ProductDetail() {
   );
 
   const selectedVariant = variants?.find((v) => v.id === selectedVariantId) ?? null;
-  // Foto exibida: a da variante selecionada (se tiver uma própria), senão a do produto
+  // Fotos exibidas: as da variante selecionada (se tiver), senão as do produto
   const displayImages =
-    selectedVariant?.image ? [selectedVariant.image] : product?.images ?? [];
+    selectedVariant?.images && selectedVariant.images.length > 0
+      ? selectedVariant.images
+      : product?.images ?? [];
+  // Título exibido: nome do produto + a opção escolhida (ex: "Sérum Facial - Morango")
+  const displayName = selectedVariant
+    ? `${product?.name ?? ""} - ${selectedVariant.label}`
+    : product?.name ?? "";
 
   // Ao trocar de produto (navegação normal), reseta seleção
   React.useEffect(() => {
@@ -51,15 +57,15 @@ export default function ProductDetail() {
     window.dispatchEvent(new CustomEvent('addToCart', {
       detail: {
         id: product.id,
-        name: selectedVariant ? `${product.name} - ${selectedVariant.label}` : product.name,
+        name: displayName,
         price: product.price,
         quantity: quantity,
-        image: selectedVariant?.image || (product.images && product.images.length > 0 ? product.images[0] : "📦"),
+        image: displayImages.length > 0 ? displayImages[0] : "📦",
         variantId: selectedVariant?.id,
         color: selectedVariant?.label,
       }
     }));
-    toast.success(`${product.name} adicionado ao carrinho!`);
+    toast.success(`${displayName} adicionado ao carrinho!`);
     setQuantity(1);
   };
 
@@ -120,7 +126,7 @@ export default function ProductDetail() {
                   <>
                     <img
                       src={displayImages[selectedImageIndex] ?? displayImages[0]}
-                      alt={selectedVariant ? `${product.name} - ${selectedVariant.label}` : product.name}
+                      alt={displayName}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-smooth flex items-center justify-center">
@@ -157,7 +163,7 @@ export default function ProductDetail() {
             <div>
               <div className="mb-4">
                 <h1 className="text-4xl font-serif font-bold text-foreground mb-4">
-                  {product.name}
+                  {displayName}
                 </h1>
                 
                 {/* Rating */}
@@ -220,9 +226,9 @@ export default function ProductDetail() {
                           }`}
                         >
                           <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                            {variant.image ? (
+                            {variant.images && variant.images.length > 0 ? (
                               <img
-                                src={variant.image}
+                                src={variant.images[0]}
                                 alt={variant.label ?? ""}
                                 className="w-full h-full object-cover"
                               />
@@ -387,7 +393,7 @@ export default function ProductDetail() {
 
           <img
             src={displayImages[selectedImageIndex] ?? displayImages[0]}
-            alt={selectedVariant ? `${product.name} - ${selectedVariant.label}` : product.name}
+            alt={displayName}
             className="max-h-[85vh] max-w-[85vw] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />

@@ -41,7 +41,7 @@ export default function Admin() {
   // Variações (produtos vinculados entre si)
   // Variantes (cor/sabor/nome dentro de um mesmo produto)
   const [variantProductId, setVariantProductId] = useState<string>("");
-  const [variantForm, setVariantForm] = useState({ label: "", image: "", stock: "" });
+  const [variantForm, setVariantForm] = useState({ label: "", image1: "", image2: "", stock: "" });
 
   const allProducts = trpc.products.adminGetAll.useQuery(undefined, {
     enabled: user?.role === "admin",
@@ -97,7 +97,7 @@ export default function Admin() {
     onSuccess: () => {
       toast.success("Variante adicionada!");
       productVariantsQuery.refetch();
-      setVariantForm({ label: "", image: "", stock: "" });
+      setVariantForm({ label: "", image1: "", image2: "", stock: "" });
     },
     onError: (error) => {
       toast.error(`Erro ao adicionar variante: ${error.message}`);
@@ -265,7 +265,7 @@ export default function Admin() {
     createVariant.mutate({
       productId: parseInt(variantProductId),
       label: variantForm.label,
-      image: variantForm.image || undefined,
+      images: [variantForm.image1, variantForm.image2].filter((url) => url.trim() !== ""),
       stock: variantForm.stock ? parseInt(variantForm.stock) : undefined,
     });
   };
@@ -549,31 +549,43 @@ export default function Admin() {
                 </div>
 
                 {variantProductId && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Nome da Opção *</Label>
-                      <Input
-                        value={variantForm.label}
-                        onChange={(e) => setVariantForm({ ...variantForm, label: e.target.value })}
-                        placeholder="Ex: Morango, Vermelho"
-                      />
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Nome da Opção *</Label>
+                        <Input
+                          value={variantForm.label}
+                          onChange={(e) => setVariantForm({ ...variantForm, label: e.target.value })}
+                          placeholder="Ex: Morango, Vermelho"
+                        />
+                      </div>
+                      <div>
+                        <Label>Estoque</Label>
+                        <Input
+                          type="number"
+                          value={variantForm.stock}
+                          onChange={(e) => setVariantForm({ ...variantForm, stock: e.target.value })}
+                          placeholder="0"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label>URL da Foto</Label>
-                      <Input
-                        value={variantForm.image}
-                        onChange={(e) => setVariantForm({ ...variantForm, image: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </div>
-                    <div>
-                      <Label>Estoque</Label>
-                      <Input
-                        type="number"
-                        value={variantForm.stock}
-                        onChange={(e) => setVariantForm({ ...variantForm, stock: e.target.value })}
-                        placeholder="0"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>URL da Foto 1</Label>
+                        <Input
+                          value={variantForm.image1}
+                          onChange={(e) => setVariantForm({ ...variantForm, image1: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div>
+                        <Label>URL da Foto 2</Label>
+                        <Input
+                          value={variantForm.image2}
+                          onChange={(e) => setVariantForm({ ...variantForm, image2: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -610,9 +622,9 @@ export default function Admin() {
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                              {variant.image ? (
+                              {variant.images && variant.images.length > 0 ? (
                                 <img
-                                  src={variant.image}
+                                  src={variant.images[0]}
                                   alt={variant.label ?? ""}
                                   className="w-full h-full object-cover"
                                 />

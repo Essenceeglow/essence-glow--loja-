@@ -204,7 +204,7 @@ export const appRouter = router({
       .input(z.object({
         productId: z.number(),
         label: z.string().min(1, "Dê um nome para a variante (ex: Morango, Vermelho)"),
-        image: z.string().optional(),
+        images: z.array(z.string()).optional(),
         stock: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -216,7 +216,7 @@ export const appRouter = router({
             productId: input.productId,
             label: input.label,
             color: input.label,
-            image: input.image,
+            images: (input.images ?? []).filter((url) => url.trim() !== ""),
             stock: input.stock ?? 0,
           });
           return { success: true };
