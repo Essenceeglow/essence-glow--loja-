@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from "react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,17 @@ export default function ProductDetail() {
     { id: parseInt(id || "1") },
     { enabled: !!id }
   );
+
+  // Buscar variações vinculadas a este produto (mesma coisa em cor/sabor/nome diferente)
+  const { data: variations } = trpc.products.getVariations.useQuery(
+    { productId: parseInt(id || "1") },
+    { enabled: !!id }
+  );
+
+  // Ao navegar para outra variação (mesma rota, id diferente), volta pra primeira foto
+  React.useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [id]);
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -171,6 +183,43 @@ export default function ProductDetail() {
                     </p>
                   )}
                 </div>
+
+                {/* Variações (mesmo produto em cor/sabor/nome diferente) */}
+                {variations && variations.length > 1 && (
+                  <div className="mb-8">
+                    <label className="block text-sm font-semibold text-foreground mb-3">
+                      Opções
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {variations.map((variation: any) => (
+                        <Link key={variation.id} href={`/product/${variation.id}`}>
+                          <a
+                            className={`flex items-center gap-2 border-2 rounded-lg p-2 pr-3 transition-smooth hover:border-accent ${
+                              variation.id === product.id
+                                ? "border-accent bg-accent/10"
+                                : "border-border"
+                            }`}
+                          >
+                            <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {variation.images && variation.images.length > 0 ? (
+                                <img
+                                  src={variation.images[0]}
+                                  alt={variation.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-lg">📦</span>
+                              )}
+                            </div>
+                            <span className="text-sm font-medium text-foreground">
+                              {variation.name}
+                            </span>
+                          </a>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Description */}
                 <p className="text-muted-foreground mb-8 leading-relaxed">

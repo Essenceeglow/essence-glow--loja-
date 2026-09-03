@@ -180,6 +180,83 @@ export const appRouter = router({
           throw error;
         }
       }),
+
+    // Retorna todas as variações (produtos vinculados) de um produto, incluindo ele mesmo.
+    // Usado na página de produto para mostrar o seletor de cor/sabor/nome.
+    getVariations: publicProcedure
+      .input(z.object({ productId: z.number() }))
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return [];
+        try {
+          const [current] = await db
+            .select()
+            .from(products)
+            .where(eq(products.id, input.productId))
+            .limit(1);
+
+          if (!current || !current.variationGroupId) return [];
+
+          const group = await db
+            .select()
+            .from(products)
+            .where(eq(products.variationGroupId, current.variationGroupId));
+
+          return group;
+        } catch (error) {
+          console.error("Error fetching variations:", error);
+          return [];
+        }
+      }),
+
+    // Vincula um produto ao grupo de variações de outro (cria o grupo se não existir).
+    adminLinkVariation: protectedProcedure
+      .input(z.object({ productId: z.number(), targetProductId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        if (input.productId === input.targetProductId) {
+          throw new Error('Selecione dois produtos diferentes');
+        }
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          const [target] = await db
+            .select()
+            .from(products)
+            .where(eq(products.id, input.targetProductId))
+            .limit(1);
+
+          if (!target) throw new Error('Produto de destino não encontrado');
+
+          const groupId = target.variationGroupId ?? `group-${input.targetProductId}`;
+
+          if (!target.variationGroupId) {
+            await db.update(products).set({ variationGroupId: groupId }).where(eq(products.id, input.targetProductId));
+          }
+          await db.update(products).set({ variationGroupId: groupId }).where(eq(products.id, input.productId));
+
+          return { success: true };
+        } catch (error) {
+          console.error("Error linking variation:", error);
+          throw error;
+        }
+      }),
+
+    // Remove um produto do grupo de variações (ele volta a ser um produto independente).
+    adminUnlinkVariation: protectedProcedure
+      .input(z.object({ productId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          await db.update(products).set({ variationGroupId: null }).where(eq(products.id, input.productId));
+          return { success: true };
+        } catch (error) {
+          console.error("Error unlinking variation:", error);
+          throw error;
+        }
+      }),
   }),
 
   bundles: router({

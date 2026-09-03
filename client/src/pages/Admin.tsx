@@ -38,6 +38,10 @@ export default function Admin() {
   });
   const [selectedBundleProducts, setSelectedBundleProducts] = useState<number[]>([]);
 
+  // Variações (produtos vinculados entre si)
+  const [variationProductId, setVariationProductId] = useState<string>("");
+  const [variationTargetId, setVariationTargetId] = useState<string>("");
+
   const allProducts = trpc.products.adminGetAll.useQuery(undefined, {
     enabled: user?.role === "admin",
   });
@@ -80,6 +84,28 @@ export default function Admin() {
     },
     onError: (error) => {
       toast.error(`Erro ao deletar produto: ${error.message}`);
+    },
+  });
+
+  const linkVariation = trpc.products.adminLinkVariation.useMutation({
+    onSuccess: () => {
+      toast.success("Produtos vinculados como variação!");
+      allProducts.refetch();
+      setVariationProductId("");
+      setVariationTargetId("");
+    },
+    onError: (error) => {
+      toast.error(`Erro ao vincular: ${error.message}`);
+    },
+  });
+
+  const unlinkVariation = trpc.products.adminUnlinkVariation.useMutation({
+    onSuccess: () => {
+      toast.success("Produto desvinculado!");
+      allProducts.refetch();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao desvincular: ${error.message}`);
     },
   });
 
@@ -222,14 +248,26 @@ export default function Admin() {
     });
   };
 
+  const handleLinkVariation = () => {
+    if (!variationProductId || !variationTargetId) {
+      toast.error("Selecione os dois produtos para vincular");
+      return;
+    }
+    linkVariation.mutate({
+      productId: parseInt(variationProductId),
+      targetProductId: parseInt(variationTargetId),
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-lavender-50 via-rose-50 to-mint-50 p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-slate-purple mb-8">Painel de Administração</h1>
 
         <Tabs defaultValue="products" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="products">Produtos</TabsTrigger>
+            <TabsTrigger value="variations">Variações</TabsTrigger>
             <TabsTrigger value="bundles">Bundles</TabsTrigger>
             <TabsTrigger value="reviews">Avaliações</TabsTrigger>
           </TabsList>
@@ -467,6 +505,114 @@ export default function Admin() {
                     </TableBody>
                   </Table>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Aba Variações (produtos vinculados: mesma coisa em cor/sabor/nome diferente) */}
+          <TabsContent value="variations" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Vincular Produtos como Variação</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Escolha dois produtos já cadastrados (ex: mesmo produto em cores ou sabores
+                  diferentes). Na página de produto, o cliente vai ver um seletor para trocar
+                  entre eles — a foto e o título mudam automaticamente.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Produto A</Label>
+                    <Select value={variationProductId} onValueChange={setVariationProductId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um produto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allProducts.data?.map((product) => (
+                          <SelectItem key={product.id} value={String(product.id)}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Produto B (variação de A)</Label>
+                    <Select value={variationTargetId} onValueChange={setVariationTargetId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um produto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allProducts.data?.map((product) => (
+                          <SelectItem key={product.id} value={String(product.id)}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleLinkVariation}
+                  disabled={linkVariation.isPending}
+                  className="w-full"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {linkVariation.isPending ? "Vinculando..." : "Vincular como Variação"}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Grupos de Variação Cadastrados</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {(() => {
+                  const withGroup = (allProducts.data ?? []).filter((p: any) => p.variationGroupId);
+                  const groups = new Map<string, any[]>();
+                  withGroup.forEach((p: any) => {
+                    const list = groups.get(p.variationGroupId) ?? [];
+                    list.push(p);
+                    groups.set(p.variationGroupId, list);
+                  });
+
+                  if (groups.size === 0) {
+                    return (
+                      <p className="text-muted-foreground">
+                        Nenhum produto vinculado como variação ainda.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {Array.from(groups.entries()).map(([groupId, groupProducts]) => (
+                        <div key={groupId} className="border rounded-lg p-4">
+                          <p className="text-xs text-muted-foreground mb-2">Grupo: {groupId}</p>
+                          <div className="space-y-2">
+                            {groupProducts.map((product) => (
+                              <div
+                                key={product.id}
+                                className="flex items-center justify-between text-sm"
+                              >
+                                <span>{product.name}</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => unlinkVariation.mutate({ productId: product.id })}
+                                >
+                                  Desvincular
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

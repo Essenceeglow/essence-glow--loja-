@@ -54,6 +54,9 @@ export const products = pgTable("products", {
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
   reviewCount: integer("reviewCount").default(0),
   featured: integer("featured").default(0),
+  // Produtos com o mesmo variationGroupId aparecem como "variações" uns dos
+  // outros na página de produto (ex: mesmo item em cores/sabores diferentes).
+  variationGroupId: varchar("variationGroupId", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });

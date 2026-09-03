@@ -1,0 +1,1 @@
+ALTER TABLE "products" ADD COLUMN "variationGroupId" varchar(64);
