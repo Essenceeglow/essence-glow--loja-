@@ -25,6 +25,7 @@ export interface CartItem {
   size?: string;
   color?: string;
   image?: string;
+  variantId?: number;
 }
 
 const CART_STORAGE_KEY = "essence-glow-cart";

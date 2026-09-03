@@ -14,6 +14,7 @@ export default function ProductDetail() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null);
 
   // Buscar produto real do banco de dados
   const { data: product, isLoading } = trpc.products.getById.useQuery(
@@ -21,28 +22,41 @@ export default function ProductDetail() {
     { enabled: !!id }
   );
 
-  // Buscar variações vinculadas a este produto (mesma coisa em cor/sabor/nome diferente)
-  const { data: variations } = trpc.products.getVariations.useQuery(
+  // Buscar as variantes (cor/sabor/nome) deste produto - todas na mesma página
+  const { data: variants } = trpc.products.getVariants.useQuery(
     { productId: parseInt(id || "1") },
     { enabled: !!id }
   );
 
-  // Ao navegar para outra variação (mesma rota, id diferente), volta pra primeira foto
+  const selectedVariant = variants?.find((v) => v.id === selectedVariantId) ?? null;
+  // Foto exibida: a da variante selecionada (se tiver uma própria), senão a do produto
+  const displayImages =
+    selectedVariant?.image ? [selectedVariant.image] : product?.images ?? [];
+
+  // Ao trocar de produto (navegação normal), reseta seleção
   React.useEffect(() => {
     setSelectedImageIndex(0);
+    setSelectedVariantId(null);
   }, [id]);
 
   const handleAddToCart = () => {
     if (!product) return;
-    
+
+    if (variants && variants.length > 0 && !selectedVariant) {
+      toast.error("Escolha uma opção antes de adicionar ao carrinho");
+      return;
+    }
+
     // Dispatch event para adicionar ao carrinho
     window.dispatchEvent(new CustomEvent('addToCart', {
       detail: {
         id: product.id,
-        name: product.name,
+        name: selectedVariant ? `${product.name} - ${selectedVariant.label}` : product.name,
         price: product.price,
         quantity: quantity,
-        image: product.images && product.images.length > 0 ? product.images[0] : "📦",
+        image: selectedVariant?.image || (product.images && product.images.length > 0 ? product.images[0] : "📦"),
+        variantId: selectedVariant?.id,
+        color: selectedVariant?.label,
       }
     }));
     toast.success(`${product.name} adicionado ao carrinho!`);
@@ -100,13 +114,13 @@ export default function ProductDetail() {
             <div>
               <div
                 className="bg-gradient-to-br from-muted to-muted/50 rounded-lg p-8 mb-4 h-96 flex items-center justify-center text-6xl overflow-hidden cursor-zoom-in relative group"
-                onClick={() => product.images && product.images.length > 0 && setIsLightboxOpen(true)}
+                onClick={() => displayImages.length > 0 && setIsLightboxOpen(true)}
               >
-                {product.images && product.images.length > 0 ? (
+                {displayImages.length > 0 ? (
                   <>
                     <img
-                      src={product.images[selectedImageIndex]}
-                      alt={product.name}
+                      src={displayImages[selectedImageIndex] ?? displayImages[0]}
+                      alt={selectedVariant ? `${product.name} - ${selectedVariant.label}` : product.name}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-smooth flex items-center justify-center">
@@ -117,7 +131,7 @@ export default function ProductDetail() {
                   <span>📦</span>
                 )}
               </div>
-              {product.images && product.images.length > 1 && (
+              {!selectedVariant && product.images && product.images.length > 1 && (
                 <div className="grid grid-cols-3 gap-4">
                   {product.images.map((image: string, idx: number) => (
                     <button
@@ -184,38 +198,42 @@ export default function ProductDetail() {
                   )}
                 </div>
 
-                {/* Variações (mesmo produto em cor/sabor/nome diferente) */}
-                {variations && variations.length > 1 && (
+                {/* Variantes (mesma página, troca a foto ao clicar) */}
+                {variants && variants.length > 0 && (
                   <div className="mb-8">
                     <label className="block text-sm font-semibold text-foreground mb-3">
-                      Opções
+                      Escolha uma opção {!selectedVariant && <span className="text-destructive">*</span>}
                     </label>
                     <div className="flex flex-wrap gap-3">
-                      {variations.map((variation: any) => (
-                        <Link key={variation.id} href={`/product/${variation.id}`}>
-                          <a
-                            className={`flex items-center gap-2 border-2 rounded-lg p-2 pr-3 transition-smooth hover:border-accent ${
-                              variation.id === product.id
-                                ? "border-accent bg-accent/10"
-                                : "border-border"
-                            }`}
-                          >
-                            <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                              {variation.images && variation.images.length > 0 ? (
-                                <img
-                                  src={variation.images[0]}
-                                  alt={variation.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-lg">📦</span>
-                              )}
-                            </div>
-                            <span className="text-sm font-medium text-foreground">
-                              {variation.name}
-                            </span>
-                          </a>
-                        </Link>
+                      {variants.map((variant) => (
+                        <button
+                          key={variant.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedVariantId(variant.id);
+                            setSelectedImageIndex(0);
+                          }}
+                          className={`flex items-center gap-2 border-2 rounded-lg p-2 pr-3 transition-smooth hover:border-accent ${
+                            selectedVariantId === variant.id
+                              ? "border-accent bg-accent/10"
+                              : "border-border"
+                          }`}
+                        >
+                          <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                            {variant.image ? (
+                              <img
+                                src={variant.image}
+                                alt={variant.label ?? ""}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-lg">📦</span>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium text-foreground">
+                            {variant.label}
+                          </span>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -339,7 +357,7 @@ export default function ProductDetail() {
       </main>
 
       {/* Lightbox - visualização em tela cheia das fotos */}
-      {isLightboxOpen && product.images && product.images.length > 0 && (
+      {isLightboxOpen && displayImages.length > 0 && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
           onClick={() => setIsLightboxOpen(false)}
@@ -352,14 +370,14 @@ export default function ProductDetail() {
             <X className="w-8 h-8" />
           </button>
 
-          {product.images.length > 1 && (
+          {displayImages.length > 1 && (
             <button
               type="button"
               className="absolute left-4 md:left-8 text-white/80 hover:text-white transition-smooth"
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedImageIndex(
-                  (selectedImageIndex - 1 + product.images.length) % product.images.length
+                  (selectedImageIndex - 1 + displayImages.length) % displayImages.length
                 );
               }}
             >
@@ -368,28 +386,28 @@ export default function ProductDetail() {
           )}
 
           <img
-            src={product.images[selectedImageIndex]}
-            alt={product.name}
+            src={displayImages[selectedImageIndex] ?? displayImages[0]}
+            alt={selectedVariant ? `${product.name} - ${selectedVariant.label}` : product.name}
             className="max-h-[85vh] max-w-[85vw] object-contain rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
 
-          {product.images.length > 1 && (
+          {displayImages.length > 1 && (
             <button
               type="button"
               className="absolute right-4 md:right-8 text-white/80 hover:text-white transition-smooth"
               onClick={(e) => {
                 e.stopPropagation();
-                setSelectedImageIndex((selectedImageIndex + 1) % product.images.length);
+                setSelectedImageIndex((selectedImageIndex + 1) % displayImages.length);
               }}
             >
               <ChevronRight className="w-10 h-10" />
             </button>
           )}
 
-          {product.images.length > 1 && (
+          {displayImages.length > 1 && (
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-sm">
-              {selectedImageIndex + 1} / {product.images.length}
+              {selectedImageIndex + 1} / {displayImages.length}
             </div>
           )}
         </div>

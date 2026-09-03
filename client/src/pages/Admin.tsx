@@ -39,8 +39,9 @@ export default function Admin() {
   const [selectedBundleProducts, setSelectedBundleProducts] = useState<number[]>([]);
 
   // Variações (produtos vinculados entre si)
-  const [variationProductId, setVariationProductId] = useState<string>("");
-  const [variationTargetId, setVariationTargetId] = useState<string>("");
+  // Variantes (cor/sabor/nome dentro de um mesmo produto)
+  const [variantProductId, setVariantProductId] = useState<string>("");
+  const [variantForm, setVariantForm] = useState({ label: "", image: "", stock: "" });
 
   const allProducts = trpc.products.adminGetAll.useQuery(undefined, {
     enabled: user?.role === "admin",
@@ -87,25 +88,29 @@ export default function Admin() {
     },
   });
 
-  const linkVariation = trpc.products.adminLinkVariation.useMutation({
+  const productVariantsQuery = trpc.products.getVariants.useQuery(
+    { productId: parseInt(variantProductId) },
+    { enabled: !!variantProductId }
+  );
+
+  const createVariant = trpc.products.adminCreateVariant.useMutation({
     onSuccess: () => {
-      toast.success("Produtos vinculados como variação!");
-      allProducts.refetch();
-      setVariationProductId("");
-      setVariationTargetId("");
+      toast.success("Variante adicionada!");
+      productVariantsQuery.refetch();
+      setVariantForm({ label: "", image: "", stock: "" });
     },
     onError: (error) => {
-      toast.error(`Erro ao vincular: ${error.message}`);
+      toast.error(`Erro ao adicionar variante: ${error.message}`);
     },
   });
 
-  const unlinkVariation = trpc.products.adminUnlinkVariation.useMutation({
+  const deleteVariant = trpc.products.adminDeleteVariant.useMutation({
     onSuccess: () => {
-      toast.success("Produto desvinculado!");
-      allProducts.refetch();
+      toast.success("Variante removida!");
+      productVariantsQuery.refetch();
     },
     onError: (error) => {
-      toast.error(`Erro ao desvincular: ${error.message}`);
+      toast.error(`Erro ao remover variante: ${error.message}`);
     },
   });
 
@@ -248,14 +253,20 @@ export default function Admin() {
     });
   };
 
-  const handleLinkVariation = () => {
-    if (!variationProductId || !variationTargetId) {
-      toast.error("Selecione os dois produtos para vincular");
+  const handleCreateVariant = () => {
+    if (!variantProductId) {
+      toast.error("Selecione o produto primeiro");
       return;
     }
-    linkVariation.mutate({
-      productId: parseInt(variationProductId),
-      targetProductId: parseInt(variationTargetId),
+    if (!variantForm.label) {
+      toast.error("Dê um nome para a variante (ex: Morango, Vermelho)");
+      return;
+    }
+    createVariant.mutate({
+      productId: parseInt(variantProductId),
+      label: variantForm.label,
+      image: variantForm.image || undefined,
+      stock: variantForm.stock ? parseInt(variantForm.stock) : undefined,
     });
   };
 
@@ -513,108 +524,123 @@ export default function Admin() {
           <TabsContent value="variations" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Vincular Produtos como Variação</CardTitle>
+                <CardTitle>Adicionar Variante a um Produto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Escolha dois produtos já cadastrados (ex: mesmo produto em cores ou sabores
-                  diferentes). Na página de produto, o cliente vai ver um seletor para trocar
-                  entre eles — a foto e o título mudam automaticamente.
+                  Escolha um produto e adicione as opções dele (ex: cores ou sabores diferentes,
+                  cada uma com sua própria foto). Na página do produto, o cliente escolhe a opção
+                  antes de colocar no carrinho — a foto muda na hora, na mesma página.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Produto A</Label>
-                    <Select value={variationProductId} onValueChange={setVariationProductId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um produto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allProducts.data?.map((product) => (
-                          <SelectItem key={product.id} value={String(product.id)}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Produto B (variação de A)</Label>
-                    <Select value={variationTargetId} onValueChange={setVariationTargetId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um produto" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {allProducts.data?.map((product) => (
-                          <SelectItem key={product.id} value={String(product.id)}>
-                            {product.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label>Produto</Label>
+                  <Select value={variantProductId} onValueChange={setVariantProductId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um produto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allProducts.data?.map((product) => (
+                        <SelectItem key={product.id} value={String(product.id)}>
+                          {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {variantProductId && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Nome da Opção *</Label>
+                      <Input
+                        value={variantForm.label}
+                        onChange={(e) => setVariantForm({ ...variantForm, label: e.target.value })}
+                        placeholder="Ex: Morango, Vermelho"
+                      />
+                    </div>
+                    <div>
+                      <Label>URL da Foto</Label>
+                      <Input
+                        value={variantForm.image}
+                        onChange={(e) => setVariantForm({ ...variantForm, image: e.target.value })}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    <div>
+                      <Label>Estoque</Label>
+                      <Input
+                        type="number"
+                        value={variantForm.stock}
+                        onChange={(e) => setVariantForm({ ...variantForm, stock: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <Button
-                  onClick={handleLinkVariation}
-                  disabled={linkVariation.isPending}
+                  onClick={handleCreateVariant}
+                  disabled={createVariant.isPending || !variantProductId}
                   className="w-full"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  {linkVariation.isPending ? "Vinculando..." : "Vincular como Variação"}
+                  {createVariant.isPending ? "Adicionando..." : "Adicionar Variante"}
                 </Button>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Grupos de Variação Cadastrados</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {(() => {
-                  const withGroup = (allProducts.data ?? []).filter((p: any) => p.variationGroupId);
-                  const groups = new Map<string, any[]>();
-                  withGroup.forEach((p: any) => {
-                    const list = groups.get(p.variationGroupId) ?? [];
-                    list.push(p);
-                    groups.set(p.variationGroupId, list);
-                  });
-
-                  if (groups.size === 0) {
-                    return (
-                      <p className="text-muted-foreground">
-                        Nenhum produto vinculado como variação ainda.
-                      </p>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-4">
-                      {Array.from(groups.entries()).map(([groupId, groupProducts]) => (
-                        <div key={groupId} className="border rounded-lg p-4">
-                          <p className="text-xs text-muted-foreground mb-2">Grupo: {groupId}</p>
-                          <div className="space-y-2">
-                            {groupProducts.map((product) => (
-                              <div
-                                key={product.id}
-                                className="flex items-center justify-between text-sm"
-                              >
-                                <span>{product.name}</span>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => unlinkVariation.mutate({ productId: product.id })}
-                                >
-                                  Desvincular
-                                </Button>
-                              </div>
-                            ))}
+            {variantProductId && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Variantes deste Produto ({productVariantsQuery.data?.length ?? 0})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!productVariantsQuery.data || productVariantsQuery.data.length === 0 ? (
+                    <p className="text-muted-foreground">
+                      Nenhuma variante cadastrada ainda para este produto.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {productVariantsQuery.data.map((variant) => (
+                        <div
+                          key={variant.id}
+                          className="flex items-center justify-between border rounded-lg p-3"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                              {variant.image ? (
+                                <img
+                                  src={variant.image}
+                                  alt={variant.label ?? ""}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-lg">📦</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{variant.label}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Estoque: {variant.stock ?? 0}
+                              </p>
+                            </div>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteVariant.mutate({ id: variant.id })}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       ))}
                     </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Aba Bundles ("Compre o Look") */}

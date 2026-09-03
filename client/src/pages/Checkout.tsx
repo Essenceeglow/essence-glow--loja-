@@ -85,6 +85,7 @@ export default function Checkout() {
           productId: item.id,
           quantity: item.quantity,
           price: item.price,
+          variantId: item.variantId,
         })),
         totalAmount: total,
         shippingCost: shipping,

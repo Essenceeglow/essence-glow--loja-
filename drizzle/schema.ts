@@ -69,6 +69,10 @@ export const productVariants = pgTable("productVariants", {
   productId: integer("productId").notNull(),
   size: varchar("size", { length: 50 }), // P, M, G, GG, Único, etc
   color: varchar("color", { length: 100 }),
+  // Nome de exibição da variante (ex: "Morango", "Vermelho"). Se vazio, usa "color".
+  label: varchar("label", { length: 100 }),
+  // Foto própria dessa variante. Se vazio, usa a primeira foto do produto.
+  image: varchar("image", { length: 500 }),
   sku: varchar("sku", { length: 100 }).unique(),
   stock: integer("stock").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
