@@ -34,10 +34,9 @@ export default function ProductDetail() {
     selectedVariant?.images && selectedVariant.images.length > 0
       ? selectedVariant.images
       : product?.images ?? [];
-  // Título exibido: nome do produto + a opção escolhida (ex: "Sérum Facial - Morango")
-  const displayName = selectedVariant
-    ? `${product?.name ?? ""} - ${selectedVariant.label}`
-    : product?.name ?? "";
+  // Título exibido: quando uma opção está selecionada, mostra só o nome dela
+  // (ex: "Hidratante Facial de Abacaxi"), sem repetir o nome do produto base.
+  const displayName = selectedVariant ? selectedVariant.label ?? "" : product?.name ?? "";
 
   // Ao trocar de produto (navegação normal), reseta seleção
   React.useEffect(() => {
@@ -137,9 +136,9 @@ export default function ProductDetail() {
                   <span>📦</span>
                 )}
               </div>
-              {!selectedVariant && product.images && product.images.length > 1 && (
+              {displayImages.length > 1 && (
                 <div className="grid grid-cols-3 gap-4">
-                  {product.images.map((image: string, idx: number) => (
+                  {displayImages.map((image: string, idx: number) => (
                     <button
                       key={idx}
                       type="button"
@@ -150,7 +149,7 @@ export default function ProductDetail() {
                     >
                       <img
                         src={image}
-                        alt={`${product.name} ${idx + 1}`}
+                        alt={`${displayName} ${idx + 1}`}
                         className="max-w-full max-h-full object-contain"
                       />
                     </button>
