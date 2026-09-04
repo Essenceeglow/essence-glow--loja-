@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingBag, Sparkles } from "lucide-react";
+import { ShoppingBag, Leaf, Droplet, Smile, HeartHandshake, Heart, Sparkles } from "lucide-react";
 
 export default function Home() {
   const categories = [
@@ -11,6 +11,13 @@ export default function Home() {
       image: "/images/skincare-category.jpg",
       color: "from-purple-300 to-pink-300",
     },
+  ];
+
+  const features = [
+    { icon: Leaf, label: "Ativos Naturais" },
+    { icon: Droplet, label: "Hidratação Intensa" },
+    { icon: Smile, label: "Pele Saudável e Radiante" },
+    { icon: HeartHandshake, label: "Cruelty Free e Vegano" },
   ];
 
   const featuredProducts = [
@@ -47,17 +54,32 @@ export default function Home() {
   return (
     <>
       {/* Hero Banner */}
-      <section className="gradient-transcendent py-20 md:py-32">
+      <section className="gradient-transcendent py-16 md:py-20 overflow-hidden">
         <div className="container">
-          <div className="max-w-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div className="spacious">
-              <h1 className="text-4xl md:text-5xl font-serif font-bold text-foreground mb-4 leading-tight">
-                Beleza e Elegância em Cada Detalhe
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-px flex-1 max-w-8 bg-accent/40" />
+                <span className="text-xs md:text-sm font-semibold tracking-widest text-accent uppercase">
+                  Cuidado que realça sua melhor versão
+                </span>
+                <div className="h-px flex-1 max-w-8 bg-accent/40" />
+              </div>
+
+              <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4 leading-tight">
+                <span className="text-foreground">Beleza e Elegância</span>
+                <br />
+                <span className="text-accent">em Cada Detalhe</span>
               </h1>
+
               <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                Descubra nossa coleção exclusiva de skincare. Produtos selecionados com cuidado para você se sentir incrível.
+                Descubra nossa coleção exclusiva de skincare. Produtos selecionados
+                com cuidado para você{" "}
+                <span className="font-semibold text-foreground">se sentir incrível</span>,
+                todos os dias.
               </p>
-              <div className="flex gap-4">
+
+              <div className="flex gap-4 mb-10">
                 <Link href="/catalog">
                   <Button
                     size="lg"
@@ -71,6 +93,34 @@ export default function Home() {
                   Compre o Look
                 </Button>
               </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {features.map((feature) => (
+                  <div key={feature.label} className="flex flex-col items-center text-center gap-2">
+                    <feature.icon className="w-6 h-6 text-accent" strokeWidth={1.5} />
+                    <span className="text-xs font-medium text-muted-foreground leading-tight">
+                      {feature.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative">
+              <img
+                src="/images/hero-products.jpg"
+                alt="Produtos Essence & Glow"
+                className="w-full h-auto rounded-2xl shadow-lg object-cover"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-center mt-12">
+            <div className="inline-flex items-center gap-2 bg-card border border-accent/20 rounded-full px-6 py-3 shadow-sm">
+              <Heart className="w-4 h-4 text-accent" fill="currentColor" />
+              <span className="text-sm text-muted-foreground">
+                Um ritual diário de <span className="font-bold text-accent">amor</span> por você
+              </span>
             </div>
           </div>
         </div>
