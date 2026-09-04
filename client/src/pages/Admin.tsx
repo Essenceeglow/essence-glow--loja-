@@ -8,9 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Trash2, Plus, Edit2, Upload, X, Star } from "lucide-react";
+import { Trash2, Plus, Edit2, Upload, X, Star, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { uploadProductImage } from "@/lib/uploadImage";
 
 export default function Admin() {
   const { user } = useAuth();
@@ -198,19 +199,39 @@ export default function Admin() {
     setProductImages(product.images || []);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadingVariantSlot, setUploadingVariantSlot] = useState<1 | 2 | null>(null);
+  const [isUploadingBundleImage, setIsUploadingBundleImage] = useState(false);
+
+  const handleVariantImageUpload = async (slot: 1 | 2, file: File) => {
+    setUploadingVariantSlot(slot);
+    try {
+      const url = await uploadProductImage(file);
+      setVariantForm((prev) => ({ ...prev, [`image${slot}`]: url }));
+      toast.success("Imagem enviada");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao enviar imagem");
+    } finally {
+      setUploadingVariantSlot(null);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            setProductImages([...productImages, event.target.result as string]);
-            toast.success(`Imagem "${file.name}" adicionada`);
-          }
-        };
-        reader.readAsDataURL(file);
-      });
+    if (!files || files.length === 0) return;
+
+    setIsUploadingImage(true);
+    try {
+      for (const file of Array.from(files)) {
+        const url = await uploadProductImage(file);
+        setProductImages((prev) => [...prev, url]);
+        toast.success(`Imagem "${file.name}" enviada`);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao enviar imagem");
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = "";
     }
   };
 
@@ -380,14 +401,19 @@ export default function Admin() {
                   <div className="border-2 border-dashed border-rose-pink/30 rounded-lg p-4">
                     <div className="flex flex-col gap-4">
                       <div className="flex items-center justify-center">
-                        <label className="cursor-pointer flex items-center gap-2 text-rose-pink hover:text-rose-pink/80">
-                          <Upload className="w-5 h-5" />
-                          <span>Clique para adicionar imagens</span>
+                        <label className={`cursor-pointer flex items-center gap-2 text-rose-pink hover:text-rose-pink/80 ${isUploadingImage ? "opacity-50 pointer-events-none" : ""}`}>
+                          {isUploadingImage ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Upload className="w-5 h-5" />
+                          )}
+                          <span>{isUploadingImage ? "Enviando..." : "Clique para adicionar imagens"}</span>
                           <input
                             type="file"
                             multiple
                             accept="image/*"
                             className="hidden"
+                            disabled={isUploadingImage}
                             onChange={handleImageUpload}
                           />
                         </label>
@@ -571,20 +597,86 @@ export default function Admin() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label>URL da Foto 1</Label>
-                        <Input
-                          value={variantForm.image1}
-                          onChange={(e) => setVariantForm({ ...variantForm, image1: e.target.value })}
-                          placeholder="https://..."
-                        />
+                        <Label>Foto 1</Label>
+                        <div className="border-2 border-dashed border-rose-pink/30 rounded-lg p-3">
+                          {variantForm.image1 ? (
+                            <div className="relative">
+                              <img
+                                src={variantForm.image1}
+                                alt="Foto 1"
+                                className="w-full h-24 object-contain bg-muted rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setVariantForm({ ...variantForm, image1: "" })}
+                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className={`cursor-pointer flex flex-col items-center gap-1 text-rose-pink hover:text-rose-pink/80 py-3 ${uploadingVariantSlot === 1 ? "opacity-50 pointer-events-none" : ""}`}>
+                              {uploadingVariantSlot === 1 ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <Upload className="w-5 h-5" />
+                              )}
+                              <span className="text-xs">Escolher arquivo</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingVariantSlot === 1}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleVariantImageUpload(1, file);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
                       </div>
                       <div>
-                        <Label>URL da Foto 2</Label>
-                        <Input
-                          value={variantForm.image2}
-                          onChange={(e) => setVariantForm({ ...variantForm, image2: e.target.value })}
-                          placeholder="https://..."
-                        />
+                        <Label>Foto 2</Label>
+                        <div className="border-2 border-dashed border-rose-pink/30 rounded-lg p-3">
+                          {variantForm.image2 ? (
+                            <div className="relative">
+                              <img
+                                src={variantForm.image2}
+                                alt="Foto 2"
+                                className="w-full h-24 object-contain bg-muted rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setVariantForm({ ...variantForm, image2: "" })}
+                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className={`cursor-pointer flex flex-col items-center gap-1 text-rose-pink hover:text-rose-pink/80 py-3 ${uploadingVariantSlot === 2 ? "opacity-50 pointer-events-none" : ""}`}>
+                              {uploadingVariantSlot === 2 ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <Upload className="w-5 h-5" />
+                              )}
+                              <span className="text-xs">Escolher arquivo</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploadingVariantSlot === 2}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleVariantImageUpload(2, file);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -691,12 +783,55 @@ export default function Admin() {
                   />
                 </div>
                 <div>
-                  <Label>URL da Imagem</Label>
-                  <Input
-                    value={bundleForm.image}
-                    onChange={(e) => setBundleForm({ ...bundleForm, image: e.target.value })}
-                    placeholder="https://..."
-                  />
+                  <Label>Imagem do Bundle</Label>
+                  <div className="border-2 border-dashed border-rose-pink/30 rounded-lg p-3">
+                    {bundleForm.image ? (
+                      <div className="relative">
+                        <img
+                          src={bundleForm.image}
+                          alt="Bundle"
+                          className="w-full h-32 object-contain bg-muted rounded"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setBundleForm({ ...bundleForm, image: "" })}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className={`cursor-pointer flex flex-col items-center gap-1 text-rose-pink hover:text-rose-pink/80 py-3 ${isUploadingBundleImage ? "opacity-50 pointer-events-none" : ""}`}>
+                        {isUploadingBundleImage ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Upload className="w-5 h-5" />
+                        )}
+                        <span className="text-xs">Escolher arquivo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={isUploadingBundleImage}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setIsUploadingBundleImage(true);
+                            try {
+                              const url = await uploadProductImage(file);
+                              setBundleForm((prev) => ({ ...prev, image: url }));
+                              toast.success("Imagem enviada");
+                            } catch (error: any) {
+                              toast.error(error?.message || "Erro ao enviar imagem");
+                            } finally {
+                              setIsUploadingBundleImage(false);
+                              e.target.value = "";
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
                 </div>
 
                 <div>
