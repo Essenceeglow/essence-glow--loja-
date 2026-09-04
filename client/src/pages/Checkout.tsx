@@ -339,9 +339,9 @@ export default function Checkout() {
                 <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
                   {cartItems.map((item) => (
                     <div key={item.id} className="flex gap-3">
-                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
                         {item.image?.startsWith("http") || item.image?.startsWith("/") ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
                         ) : (
                           <span className="text-lg">{item.image || "🛍️"}</span>
                         )}

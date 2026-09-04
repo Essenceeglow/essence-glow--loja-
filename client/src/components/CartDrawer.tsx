@@ -59,9 +59,9 @@ export default function CartDrawer({
               {items.map((item) => (
                 <div key={item.id} className="flex items-start justify-between gap-3 pb-3 border-b border-border last:border-0">
                   {/* Imagem */}
-                  <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 p-1">
                     {item.image?.startsWith("http") || item.image?.startsWith("/") || item.image?.startsWith("data:") ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain" />
                     ) : (
                       <span className="text-xl">{item.image || "🛍️"}</span>
                     )}

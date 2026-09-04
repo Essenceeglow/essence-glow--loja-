@@ -125,12 +125,12 @@ export default function Catalog() {
                   {filteredProducts.map((product: any) => (
                     <Link key={product.id} href={`/product/${product.id}`}>
                       <Card className="group cursor-pointer hover:shadow-soft transition-smooth overflow-hidden h-full flex flex-col">
-                        <div className="bg-gradient-to-br from-muted to-muted/50 h-48 flex items-center justify-center text-5xl group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="bg-gradient-to-br from-muted to-muted/50 h-48 flex items-center justify-center text-5xl group-hover:scale-105 transition-transform overflow-hidden p-3">
                           {product.images && product.images.length > 0 ? (
                             <img 
                               src={product.images[0]} 
                               alt={product.name}
-                              className="w-full h-full object-cover"
+                              className="max-w-full max-h-full object-contain"
                             />
                           ) : (
                             <span>📦</span>

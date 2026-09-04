@@ -399,7 +399,7 @@ export default function Admin() {
                               <img
                                 src={img}
                                 alt={`Produto ${idx}`}
-                                className="w-full h-20 object-cover rounded"
+                                className="w-full h-20 object-contain rounded bg-muted"
                               />
                               <button
                                 onClick={() =>
@@ -621,12 +621,12 @@ export default function Admin() {
                           className="flex items-center justify-between border rounded-lg p-3"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                            <div className="w-10 h-10 rounded-md bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 p-0.5">
                               {variant.images && variant.images.length > 0 ? (
                                 <img
                                   src={variant.images[0]}
                                   alt={variant.label ?? ""}
-                                  className="w-full h-full object-cover"
+                                  className="max-w-full max-h-full object-contain"
                                 />
                               ) : (
                                 <span className="text-lg">📦</span>

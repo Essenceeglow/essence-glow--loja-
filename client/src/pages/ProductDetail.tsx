@@ -127,7 +127,7 @@ export default function ProductDetail() {
                     <img
                       src={displayImages[selectedImageIndex] ?? displayImages[0]}
                       alt={displayName}
-                      className="w-full h-full object-cover"
+                      className="max-w-full max-h-full object-contain"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-smooth flex items-center justify-center">
                       <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-smooth drop-shadow" />
@@ -144,14 +144,14 @@ export default function ProductDetail() {
                       key={idx}
                       type="button"
                       onClick={() => setSelectedImageIndex(idx)}
-                      className={`bg-muted rounded-lg p-4 h-24 flex items-center justify-center text-3xl overflow-hidden cursor-pointer hover:opacity-80 transition-smooth border-2 ${
+                      className={`bg-muted rounded-lg p-2 h-24 flex items-center justify-center text-3xl overflow-hidden cursor-pointer hover:opacity-80 transition-smooth border-2 ${
                         selectedImageIndex === idx ? "border-accent" : "border-transparent"
                       }`}
                     >
                       <img
                         src={image}
                         alt={`${product.name} ${idx + 1}`}
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full object-contain"
                       />
                     </button>
                   ))}
@@ -230,7 +230,7 @@ export default function ProductDetail() {
                               <img
                                 src={variant.images[0]}
                                 alt={variant.label ?? ""}
-                                className="w-full h-full object-cover"
+                                className="max-w-full max-h-full object-contain"
                               />
                             ) : (
                               <span className="text-lg">📦</span>
