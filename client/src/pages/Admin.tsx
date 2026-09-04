@@ -43,6 +43,9 @@ export default function Admin() {
   // Variantes (cor/sabor/nome dentro de um mesmo produto)
   const [variantProductId, setVariantProductId] = useState<string>("");
   const [variantForm, setVariantForm] = useState({ label: "", image1: "", image2: "", stock: "" });
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadingVariantSlot, setUploadingVariantSlot] = useState<1 | 2 | null>(null);
+  const [isUploadingBundleImage, setIsUploadingBundleImage] = useState(false);
 
   const allProducts = trpc.products.adminGetAll.useQuery(undefined, {
     enabled: user?.role === "admin",
@@ -198,10 +201,6 @@ export default function Admin() {
     });
     setProductImages(product.images || []);
   };
-
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [uploadingVariantSlot, setUploadingVariantSlot] = useState<1 | 2 | null>(null);
-  const [isUploadingBundleImage, setIsUploadingBundleImage] = useState(false);
 
   const handleVariantImageUpload = async (slot: 1 | 2, file: File) => {
     setUploadingVariantSlot(slot);
