@@ -1,7 +1,10 @@
 import { Link } from "wouter";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingBag, Leaf, Droplet, Smile, HeartHandshake, Heart, Sparkles } from "lucide-react";
+import { ShoppingBag, Leaf, Droplet, Smile, HeartHandshake, Heart, Sparkles, Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 export default function Home() {
   const categories = [
@@ -20,36 +23,27 @@ export default function Home() {
     { icon: HeartHandshake, label: "Cruelty Free e Vegano" },
   ];
 
-  const featuredProducts = [
-    {
-      id: 1,
-      name: "Máscara Facial Hidratante",
-      price: "R$ 89,90",
-      image: "🧴",
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      name: "Sérum Corporal Retinol",
-      price: "R$ 129,90",
-      image: "✨",
-      rating: 4.9,
-    },
-    {
-      id: 3,
-      name: "Água Micelar Suave",
-      price: "R$ 42,90",
-      image: "💦",
-      rating: 4.7,
-    },
-    {
-      id: 4,
-      name: "Protetor Solar Facial FPS 60",
-      price: "R$ 69,90",
-      image: "☀️",
-      rating: 4.9,
-    },
-  ];
+  // Produtos reais do banco de dados (os 4 mais recentes)
+  const { data: allProducts, isLoading: isLoadingProducts } = trpc.products.getAll.useQuery();
+  const featuredProducts = (allProducts ?? [])
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 4);
+
+  const handleQuickAdd = (e: React.MouseEvent, product: (typeof featuredProducts)[number]) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('addToCart', {
+      detail: {
+        id: product.id,
+        name: product.name,
+        price: parseFloat(product.price as any),
+        quantity: 1,
+        image: product.images && product.images.length > 0 ? product.images[0] : "📦",
+      }
+    }));
+    toast.success(`${product.name} adicionado ao carrinho!`);
+  };
 
   return (
     <>
@@ -185,49 +179,67 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <Link key={product.id} href={`/product/${product.id}`}>
-                <Card className="group cursor-pointer hover:shadow-soft transition-smooth overflow-hidden h-full flex flex-col">
-                  <div className="bg-gradient-to-br from-muted to-muted/50 h-48 flex items-center justify-center text-5xl group-hover:scale-105 transition-transform">
-                    {product.image}
-                  </div>
-                  <div className="p-6 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-serif font-bold text-foreground mb-2 group-hover:text-accent transition-smooth">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-center gap-1 mb-4">
-                        {[...Array(5)].map((_, i) => (
-                          <span
-                            key={i}
-                            className={`text-sm ${
-                              i < Math.floor(product.rating)
-                                ? "text-yellow-400"
-                                : "text-muted"
-                            }`}
-                          >
-                            ★
+          {isLoadingProducts ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+          ) : featuredProducts.length === 0 ? (
+            <p className="text-center text-muted-foreground py-12">
+              Nenhum produto cadastrado ainda.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <Link key={product.id} href={`/product/${product.id}`}>
+                  <Card className="group cursor-pointer hover:shadow-soft transition-smooth overflow-hidden h-full flex flex-col">
+                    <div className="bg-gradient-to-br from-muted to-muted/50 h-48 flex items-center justify-center text-5xl group-hover:scale-105 transition-transform overflow-hidden p-3">
+                      {product.images && product.images.length > 0 ? (
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <span>📦</span>
+                      )}
+                    </div>
+                    <div className="p-6 flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-serif font-bold text-foreground mb-2 group-hover:text-accent transition-smooth">
+                          {product.name}
+                        </h3>
+                        <div className="flex items-center gap-1 mb-4">
+                          {[...Array(5)].map((_, i) => (
+                            <span
+                              key={i}
+                              className={`text-sm ${
+                                i < Math.floor(parseFloat(product.rating as any) || 0)
+                                  ? "text-yellow-400"
+                                  : "text-muted"
+                              }`}
+                            >
+                              ★
+                            </span>
+                          ))}
+                          <span className="text-xs text-muted-foreground ml-1">
+                            {parseFloat(product.rating as any || "0").toFixed(1)}
                           </span>
-                        ))}
-                        <span className="text-xs text-muted-foreground ml-1">
-                          {product.rating}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-accent">
+                          R$ {parseFloat(product.price as any).toFixed(2)}
                         </span>
+                        <Button size="sm" variant="outline" onClick={(e) => handleQuickAdd(e, product)}>
+                          Adicionar
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-accent">
-                        {product.price}
-                      </span>
-                      <Button size="sm" variant="outline">
-                        Adicionar
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
 
           <div className="text-center mt-12">
             <Link href="/catalog">
