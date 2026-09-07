@@ -13,6 +13,7 @@ import Checkout from "./pages/Checkout";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
+import Looks from "./pages/Looks";
 import Header from "./components/Header";
 import CartDrawer from "./components/CartDrawer";
 import Footer from "./components/Footer";
@@ -117,6 +118,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/login" component={Login} />
+          <Route path="/looks" component={Looks} />
           <Route path="/catalog" component={Catalog} />
           <Route path="/product/:id" component={ProductDetail} />
           <Route path="/profile" component={Profile} />

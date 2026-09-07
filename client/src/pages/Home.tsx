@@ -25,7 +25,12 @@ export default function Home() {
 
   // Produtos reais do banco de dados (os 4 mais recentes)
   const { data: allProducts, isLoading: isLoadingProducts } = trpc.products.getAll.useQuery();
+
+  // Sabores para a seção "Compre o Look"
+  const { data: lookData, isLoading: isLoadingLooks } = trpc.looks.getFlavors.useQuery();
+  const lookVariants = lookData?.variants ?? [];
   const featuredProducts = (allProducts ?? [])
+    .filter((p) => p.id !== lookData?.product?.id)
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 4);
@@ -83,9 +88,11 @@ export default function Home() {
                     Explorar Catálogo
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline">
-                  Compre o Look
-                </Button>
+                <Link href="/looks">
+                  <Button size="lg" variant="outline">
+                    Compre o Look
+                  </Button>
+                </Link>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -259,51 +266,51 @@ export default function Home() {
               Compre o Look
             </h2>
             <p className="text-lg text-muted-foreground">
-              Sugestões de combinações perfeitas para você
+              {lookData?.product
+                ? `Escolha seu sabor favorito de ${lookData.product.name}`
+                : "Sugestões de combinações perfeitas para você"}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="p-8 hover:shadow-soft transition-smooth">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-muted rounded-lg h-32 flex items-center justify-center text-3xl"
-                  >
-                    ✨
-                  </div>
+          {isLoadingLooks ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+          ) : lookVariants.length === 0 ? (
+            <p className="text-center text-muted-foreground">
+              Nenhum combo disponível no momento. Volte em breve!
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                {lookVariants.slice(0, 4).map((variant) => (
+                  <Link key={variant.id} href="/looks">
+                    <Card className="p-4 hover:shadow-soft transition-smooth cursor-pointer h-full flex flex-col">
+                      <div className="bg-gradient-to-br from-muted to-muted/50 h-32 flex items-center justify-center overflow-hidden rounded-lg mb-3 p-2">
+                        {variant.images && variant.images.length > 0 ? (
+                          <img
+                            src={variant.images[0]}
+                            alt={variant.label ?? ""}
+                            className="max-w-full max-h-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-3xl">📦</span>
+                        )}
+                      </div>
+                      <h3 className="font-serif font-semibold text-foreground text-sm text-center">
+                        {variant.label}
+                      </h3>
+                    </Card>
+                  </Link>
                 ))}
               </div>
-              <h3 className="font-serif text-xl font-bold text-foreground mb-2">
-                Rotina Skincare Completa
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Produtos essenciais para uma pele radiante
-              </p>
-              <Button className="w-full">Ver Combo</Button>
-            </Card>
-
-            <Card className="p-8 hover:shadow-soft transition-smooth">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="bg-muted rounded-lg h-32 flex items-center justify-center text-3xl"
-                  >
-                    💎
-                  </div>
-                ))}
+              <div className="text-center mt-10">
+                <Link href="/looks">
+                  <Button size="lg">Ver Todos os Sabores</Button>
+                </Link>
               </div>
-              <h3 className="font-serif text-xl font-bold text-foreground mb-2">
-                Noite Especial
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Maquiagem e lingerie para momentos inesquecíveis
-              </p>
-              <Button className="w-full">Ver Combo</Button>
-            </Card>
-          </div>
+            </>
+          )}
         </div>
       </section>
     </>

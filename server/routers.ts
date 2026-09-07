@@ -711,6 +711,56 @@ export const appRouter = router({
         }
       }),
   }),
+
+  looks: router({
+    // Monta o "Compre o Look" a partir do produto que tem mais variantes
+    // cadastradas (a "família de sabores"), excluindo por enquanto os sabores
+    // sem estoque (Mamão e Abacaxi). Quando tiver mais estoque, é só cadastrar
+    // a variante no admin que ela aparece aqui automaticamente.
+    getFlavors: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return { product: null, variants: [] };
+      try {
+        const allVariants = await db.select().from(productVariants);
+        if (allVariants.length === 0) return { product: null, variants: [] };
+
+        const counts = new Map<number, number>();
+        for (const v of allVariants) {
+          counts.set(v.productId, (counts.get(v.productId) ?? 0) + 1);
+        }
+
+        let bestProductId: number | null = null;
+        let bestCount = 0;
+        Array.from(counts.entries()).forEach(([productId, count]) => {
+          if (count > bestCount) {
+            bestCount = count;
+            bestProductId = productId;
+          }
+        });
+
+        if (!bestProductId) return { product: null, variants: [] };
+
+        const [product] = await db
+          .select()
+          .from(products)
+          .where(eq(products.id, bestProductId))
+          .limit(1);
+
+        const excludedFlavors = ["mamão", "mamao", "abacaxi"];
+        const variants = allVariants
+          .filter((v) => v.productId === bestProductId)
+          .filter((v) => {
+            const label = (v.label ?? "").toLowerCase();
+            return !excludedFlavors.some((ex) => label.includes(ex));
+          });
+
+        return { product: product ?? null, variants };
+      } catch (error) {
+        console.error("Error fetching look flavors:", error);
+        return { product: null, variants: [] };
+      }
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
