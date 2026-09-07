@@ -22,8 +22,13 @@ export default function Catalog() {
   // Buscar produtos reais do banco de dados
   const { data: allProducts = [], isLoading } = trpc.products.getAll.useQuery();
 
+  // O produto com mais variantes (ex: Hidratante Facial com os sabores) fica sempre
+  // em primeiro no catálogo, pra não ficar bagunçado com ele espalhado no meio.
+  const { data: lookData } = trpc.looks.getFlavors.useQuery();
+  const pinnedProductId = lookData?.product?.id;
+
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((product: any) => {
+    const filtered = allProducts.filter((product: any) => {
       const matchesCategory = !category || product.categoryId.toString() === category.toLowerCase() || 
         (category === "maquiagem" && product.categoryId === 1) ||
         (category === "skincare" && product.categoryId === 2);
@@ -33,7 +38,13 @@ export default function Catalog() {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesPrice && matchesSearch;
     });
-  }, [allProducts, category, priceRange, searchTerm]);
+
+    return filtered.slice().sort((a: any, b: any) => {
+      if (a.id === pinnedProductId) return -1;
+      if (b.id === pinnedProductId) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [allProducts, category, priceRange, searchTerm, pinnedProductId]);
 
   return (
     <>
