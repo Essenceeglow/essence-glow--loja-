@@ -24,6 +24,7 @@ export default function Admin() {
     price: "",
     originalPrice: "",
     categoryId: "1",
+    featured: false,
   });
 
   // Avaliações
@@ -62,6 +63,7 @@ export default function Admin() {
         price: "",
         originalPrice: "",
         categoryId: "1",
+        featured: false,
       });
       setProductImages([]);
       setReviews([]);
@@ -169,6 +171,7 @@ export default function Admin() {
       ...formData,
       categoryId: parseInt(formData.categoryId),
       images: productImages,
+      featured: formData.featured ? 1 : 0,
     });
   };
 
@@ -186,6 +189,7 @@ export default function Admin() {
       originalPrice: formData.originalPrice,
       categoryId: parseInt(formData.categoryId),
       images: productImages,
+      featured: formData.featured ? 1 : 0,
     });
   };
 
@@ -198,6 +202,7 @@ export default function Admin() {
       price: product.price.toString(),
       originalPrice: product.originalPrice?.toString() || "",
       categoryId: product.categoryId.toString(),
+      featured: product.featured === 1,
     });
     setProductImages(product.images || []);
   };
@@ -383,6 +388,18 @@ export default function Admin() {
                   </div>
                 </div>
 
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
+                  <input
+                    type="checkbox"
+                    checked={formData.featured}
+                    onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
+                    className="accent-accent w-4 h-4"
+                  />
+                  <span className="text-sm font-medium text-foreground">
+                    Mostrar na Home (Produtos em Destaque)
+                  </span>
+                </label>
+
                 <div>
                   <Label>Descrição</Label>
                   <Textarea
@@ -483,6 +500,7 @@ export default function Admin() {
                           price: "",
                           originalPrice: "",
                           categoryId: "1",
+                          featured: false,
                         });
                         setProductImages([]);
                       }}

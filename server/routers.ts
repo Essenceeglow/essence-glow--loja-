@@ -104,6 +104,7 @@ export const appRouter = router({
         originalPrice: z.string().optional(),
         images: z.array(z.string()).default([]),
         rating: z.string().default('0'),
+        featured: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
@@ -123,6 +124,7 @@ export const appRouter = router({
             originalPrice: input.originalPrice as any,
             images: input.images,
             rating: rating as any,
+            featured: input.featured ?? 0,
           });
           return { success: true };
         } catch (error) {

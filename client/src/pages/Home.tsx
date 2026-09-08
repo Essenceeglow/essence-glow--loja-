@@ -23,16 +23,26 @@ export default function Home() {
     { icon: HeartHandshake, label: "Cruelty Free e Vegano" },
   ];
 
-  // Produtos reais do banco de dados (os 4 mais recentes)
+  // Produtos reais do banco de dados
   const { data: allProducts, isLoading: isLoadingProducts } = trpc.products.getAll.useQuery();
 
   // Sabores para a seção "Compre o Look"
   const { data: lookData, isLoading: isLoadingLooks } = trpc.looks.getFlavors.useQuery();
   const lookVariants = lookData?.variants ?? [];
-  const featuredProducts = (allProducts ?? [])
-    .filter((p) => p.id !== lookData?.product?.id)
+
+  // Produtos em Destaque: usa os que o admin marcou manualmente como destaque.
+  // Se nenhum foi marcado ainda, mostra os mais recentes como alternativa,
+  // sempre com fotos de verdade primeiro (produtos sem foto ficam por último).
+  const nonLookProducts = (allProducts ?? []).filter((p) => p.id !== lookData?.product?.id);
+  const manuallyFeatured = nonLookProducts.filter((p: any) => p.featured === 1);
+  const featuredProducts = (manuallyFeatured.length > 0 ? manuallyFeatured : nonLookProducts)
     .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a: any, b: any) => {
+      const aHasImage = a.images && a.images.length > 0 ? 1 : 0;
+      const bHasImage = b.images && b.images.length > 0 ? 1 : 0;
+      if (aHasImage !== bHasImage) return bHasImage - aHasImage;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
     .slice(0, 4);
 
   const handleQuickAdd = (e: React.MouseEvent, product: (typeof featuredProducts)[number]) => {
@@ -212,7 +222,7 @@ export default function Home() {
                     </div>
                     <div className="p-6 flex-1 flex flex-col justify-between">
                       <div>
-                        <h3 className="font-serif font-bold text-foreground mb-2 group-hover:text-accent transition-smooth">
+                        <h3 className="font-serif font-bold text-foreground mb-2 group-hover:text-accent transition-smooth line-clamp-2">
                           {product.name}
                         </h3>
                         <div className="flex items-center gap-1 mb-4">
