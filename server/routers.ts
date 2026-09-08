@@ -37,7 +37,7 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) return [];
       try {
-        const result = await db.select().from(products);
+        const result = await db.select().from(products).orderBy(products.displayOrder);
         return result;
       } catch (error) {
         console.error("Error fetching all products:", error);
@@ -86,13 +86,30 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) return [];
       try {
-        const result = await db.select().from(products);
+        const result = await db.select().from(products).orderBy(products.displayOrder);
         return result;
       } catch (error) {
         console.error("Error fetching all products:", error);
         return [];
       }
     }),
+
+    adminReorder: protectedProcedure
+      .input(z.object({ orderedIds: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          for (let i = 0; i < input.orderedIds.length; i++) {
+            await db.update(products).set({ displayOrder: i }).where(eq(products.id, input.orderedIds[i]));
+          }
+          return { success: true };
+        } catch (error) {
+          console.error("Error reordering products:", error);
+          throw error;
+        }
+      }),
 
     adminCreate: protectedProcedure
       .input(z.object({
@@ -115,6 +132,10 @@ export const appRouter = router({
           const defaultRating = (4.5 + Math.random() * 0.5).toFixed(1);
           const rating = input.rating && input.rating !== '0' ? input.rating : defaultRating;
 
+          // Produto novo sempre entra no final da fila de organização manual
+          const allExisting = await db.select().from(products);
+          const maxOrder = allExisting.reduce((max, p) => Math.max(max, p.displayOrder ?? 0), 0);
+
           const result = await db.insert(products).values({
             categoryId: input.categoryId,
             name: input.name,
@@ -125,6 +146,7 @@ export const appRouter = router({
             images: input.images,
             rating: rating as any,
             featured: input.featured ?? 0,
+            displayOrder: maxOrder + 1,
           });
           return { success: true };
         } catch (error) {

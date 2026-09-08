@@ -37,12 +37,7 @@ export default function Home() {
   const manuallyFeatured = nonLookProducts.filter((p: any) => p.featured === 1);
   const featuredProducts = (manuallyFeatured.length > 0 ? manuallyFeatured : nonLookProducts)
     .slice()
-    .sort((a: any, b: any) => {
-      const aHasImage = a.images && a.images.length > 0 ? 1 : 0;
-      const bHasImage = b.images && b.images.length > 0 ? 1 : 0;
-      if (aHasImage !== bHasImage) return bHasImage - aHasImage;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    })
+    .sort((a: any, b: any) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     .slice(0, 4);
 
   const handleQuickAdd = (e: React.MouseEvent, product: (typeof featuredProducts)[number]) => {

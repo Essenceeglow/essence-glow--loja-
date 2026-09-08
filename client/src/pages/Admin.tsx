@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Trash2, Plus, Edit2, Upload, X, Star, Loader2 } from "lucide-react";
+import { Trash2, Plus, Edit2, Upload, X, Star, Loader2, ChevronUp, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { uploadProductImage } from "@/lib/uploadImage";
@@ -93,6 +93,26 @@ export default function Admin() {
       toast.error(`Erro ao deletar produto: ${error.message}`);
     },
   });
+
+  const reorderProducts = trpc.products.adminReorder.useMutation({
+    onSuccess: () => {
+      allProducts.refetch();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao reordenar: ${error.message}`);
+    },
+  });
+
+  const handleMoveProduct = (index: number, direction: -1 | 1) => {
+    const list = allProducts.data;
+    if (!list) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+
+    const reordered = list.map((p) => p.id);
+    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+    reorderProducts.mutate({ orderedIds: reordered });
+  };
 
   const productVariantsQuery = trpc.products.getVariants.useQuery(
     { productId: parseInt(variantProductId) },
@@ -522,6 +542,7 @@ export default function Admin() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Ordem</TableHead>
                         <TableHead>Nome</TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Preço</TableHead>
@@ -529,8 +550,30 @@ export default function Admin() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allProducts.data?.map((product) => (
+                      {allProducts.data?.map((product, index) => (
                         <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveProduct(index, -1)}
+                                disabled={index === 0 || reorderProducts.isPending}
+                                className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:cursor-not-allowed"
+                                title="Mover para cima"
+                              >
+                                <ChevronUp className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveProduct(index, 1)}
+                                disabled={index === (allProducts.data?.length ?? 0) - 1 || reorderProducts.isPending}
+                                className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:cursor-not-allowed"
+                                title="Mover para baixo"
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </TableCell>
                           <TableCell className="font-medium">
                             {product.name}
                           </TableCell>

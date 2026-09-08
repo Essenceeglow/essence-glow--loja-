@@ -57,6 +57,8 @@ export const products = pgTable("products", {
   // Produtos com o mesmo variationGroupId aparecem como "variações" uns dos
   // outros na página de produto (ex: mesmo item em cores/sabores diferentes).
   variationGroupId: varchar("variationGroupId", { length: 64 }),
+  // Ordem de exibição definida manualmente pelo admin (menor = aparece primeiro).
+  displayOrder: integer("displayOrder").default(0),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
