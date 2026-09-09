@@ -8,10 +8,75 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Trash2, Plus, Edit2, Upload, X, Star, Loader2, ChevronUp, ChevronDown } from "lucide-react";
+import { Trash2, Plus, Edit2, Upload, X, Star, Loader2, GripVertical } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { uploadProductImage } from "@/lib/uploadImage";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+// Uma linha da tabela de produtos que pode ser arrastada pra cima/baixo
+// pra reordenar (segura no ícone de "grip" e arrasta).
+function SortableProductRow({
+  product,
+  onEdit,
+  onDelete,
+}: {
+  product: any;
+  onEdit: (product: any) => void;
+  onDelete: (id: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: product.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell>
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-accent touch-none"
+          title="Segurar e arrastar para reordenar"
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+      </TableCell>
+      <TableCell className="font-medium">{product.name}</TableCell>
+      <TableCell>{product.categoryId}</TableCell>
+      <TableCell>R$ {product.price}</TableCell>
+      <TableCell className="flex gap-2">
+        <Button size="sm" variant="outline" onClick={() => onEdit(product)}>
+          <Edit2 className="w-4 h-4" />
+        </Button>
+        <Button size="sm" variant="destructive" onClick={() => onDelete(product.id)}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
 
 export default function Admin() {
   const { user } = useAuth();
@@ -103,14 +168,21 @@ export default function Admin() {
     },
   });
 
-  const handleMoveProduct = (index: number, direction: -1 | 1) => {
-    const list = allProducts.data;
-    if (!list) return;
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= list.length) return;
+  const dragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+  );
 
-    const reordered = list.map((p) => p.id);
-    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !allProducts.data) return;
+
+    const ids = allProducts.data.map((p) => p.id);
+    const oldIndex = ids.indexOf(active.id as number);
+    const newIndex = ids.indexOf(over.id as number);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(ids, oldIndex, newIndex);
     reorderProducts.mutate({ orderedIds: reordered });
   };
 
@@ -536,71 +608,44 @@ export default function Admin() {
             <Card>
               <CardHeader>
                 <CardTitle>Lista de Produtos ({allProducts.data?.length || 0})</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Segure o ícone <GripVertical className="w-3 h-3 inline" /> e arraste para reordenar.
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Ordem</TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead>Preço</TableHead>
-                        <TableHead>Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allProducts.data?.map((product, index) => (
-                        <TableRow key={product.id}>
-                          <TableCell>
-                            <div className="flex flex-col gap-0.5">
-                              <button
-                                type="button"
-                                onClick={() => handleMoveProduct(index, -1)}
-                                disabled={index === 0 || reorderProducts.isPending}
-                                className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:cursor-not-allowed"
-                                title="Mover para cima"
-                              >
-                                <ChevronUp className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleMoveProduct(index, 1)}
-                                disabled={index === (allProducts.data?.length ?? 0) - 1 || reorderProducts.isPending}
-                                className="text-muted-foreground hover:text-accent disabled:opacity-20 disabled:cursor-not-allowed"
-                                title="Mover para baixo"
-                              >
-                                <ChevronDown className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {product.name}
-                          </TableCell>
-                          <TableCell>{product.categoryId}</TableCell>
-                          <TableCell>R$ {product.price}</TableCell>
-                          <TableCell className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleSelectProduct(product)}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                deleteProduct.mutate({ id: product.id })
-                              }
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
+                  <DndContext
+                    sensors={dragSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10"></TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Categoria</TableHead>
+                          <TableHead>Preço</TableHead>
+                          <TableHead>Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        <SortableContext
+                          items={allProducts.data?.map((p) => p.id) ?? []}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {allProducts.data?.map((product) => (
+                            <SortableProductRow
+                              key={product.id}
+                              product={product}
+                              onEdit={handleSelectProduct}
+                              onDelete={(id) => deleteProduct.mutate({ id })}
+                            />
+                          ))}
+                        </SortableContext>
+                      </TableBody>
+                    </Table>
+                  </DndContext>
                 </div>
               </CardContent>
             </Card>
