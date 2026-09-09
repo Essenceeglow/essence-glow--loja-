@@ -770,13 +770,7 @@ export const appRouter = router({
           .where(eq(products.id, bestProductId))
           .limit(1);
 
-        const excludedFlavors = ["mamão", "mamao", "abacaxi"];
-        const variants = allVariants
-          .filter((v) => v.productId === bestProductId)
-          .filter((v) => {
-            const label = (v.label ?? "").toLowerCase();
-            return !excludedFlavors.some((ex) => label.includes(ex));
-          });
+        const variants = allVariants.filter((v) => v.productId === bestProductId);
 
         return { product: product ?? null, variants };
       } catch (error) {
