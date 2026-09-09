@@ -197,6 +197,8 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error('Database not available');
         try {
+          // Apaga as variações desse produto junto, para não deixar "sobra" no banco
+          await db.delete(productVariants).where(eq(productVariants.productId, input.id));
           await db.delete(products).where(eq(products.id, input.id));
           return { success: true };
         } catch (error) {
@@ -745,11 +747,16 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) return { product: null, variants: [] };
       try {
+        const allProducts = await db.select().from(products);
+        const validProductIds = new Set(allProducts.map((p) => p.id));
+
         const allVariants = await db.select().from(productVariants);
-        if (allVariants.length === 0) return { product: null, variants: [] };
+        // Ignora variantes "órfãs" (de produtos que já foram apagados)
+        const validVariants = allVariants.filter((v) => validProductIds.has(v.productId));
+        if (validVariants.length === 0) return { product: null, variants: [] };
 
         const counts = new Map<number, number>();
-        for (const v of allVariants) {
+        for (const v of validVariants) {
           counts.set(v.productId, (counts.get(v.productId) ?? 0) + 1);
         }
 
@@ -764,15 +771,10 @@ export const appRouter = router({
 
         if (!bestProductId) return { product: null, variants: [] };
 
-        const [product] = await db
-          .select()
-          .from(products)
-          .where(eq(products.id, bestProductId))
-          .limit(1);
+        const product = allProducts.find((p) => p.id === bestProductId) ?? null;
+        const variants = validVariants.filter((v) => v.productId === bestProductId);
 
-        const variants = allVariants.filter((v) => v.productId === bestProductId);
-
-        return { product: product ?? null, variants };
+        return { product, variants };
       } catch (error) {
         console.error("Error fetching look flavors:", error);
         return { product: null, variants: [] };
