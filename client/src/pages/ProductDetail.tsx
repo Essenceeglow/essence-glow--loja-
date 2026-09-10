@@ -57,7 +57,7 @@ export default function ProductDetail() {
       detail: {
         id: product.id,
         name: displayName,
-        price: product.price,
+        price: parseFloat(product.price as any),
         quantity: quantity,
         image: displayImages.length > 0 ? displayImages[0] : "📦",
         variantId: selectedVariant?.id,

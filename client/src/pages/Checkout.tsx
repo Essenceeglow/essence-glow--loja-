@@ -40,7 +40,7 @@ export default function Checkout() {
   const createOrder = trpc.orders.create.useMutation();
   const createPreference = trpc.payments.createPreference.useMutation();
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
   const shipping = subtotal >= 100 || subtotal === 0 ? 0 : 15;
   const total = subtotal + shipping;
 
@@ -84,7 +84,7 @@ export default function Checkout() {
         items: cartItems.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
-          price: item.price,
+          price: Number(item.price),
           variantId: item.variantId,
         })),
         totalAmount: total,
@@ -349,7 +349,7 @@ export default function Checkout() {
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-foreground">{item.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {item.quantity}x R$ {item.price.toFixed(2)}
+                          {item.quantity}x R$ {Number(item.price).toFixed(2)}
                         </p>
                       </div>
                     </div>
