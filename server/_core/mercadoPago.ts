@@ -69,7 +69,10 @@ export async function createPaymentPreference(params: {
   return {
     preferenceId: result.id,
     // Em produção usar init_point; sandbox_init_point funciona com credenciais de teste.
-    checkoutUrl: result.init_point ?? result.sandbox_init_point ?? null,
+    // O Mercado Pago só devolve "sandbox_init_point" quando as credenciais usadas
+    // são de TESTE. Priorizar ele garante que, em teste, o cliente caia na tela
+    // certa de pagamento (senão dava erro ao tentar pagar com cartão de teste).
+    checkoutUrl: result.sandbox_init_point ?? result.init_point ?? null,
   };
 }
 
