@@ -285,6 +285,17 @@ export default function Profile() {
                               ))}
                             </div>
                           </div>
+                          {order.address && (
+                            <div className="text-sm text-muted-foreground border-t border-border pt-4">
+                              <p className="font-semibold text-foreground mb-1">Endereço de entrega</p>
+                              <p>
+                                {order.address.street}, {order.address.number}
+                                {order.address.complement ? ` - ${order.address.complement}` : ""}
+                                <br />
+                                {order.address.city} - {order.address.state}, {order.address.cep}
+                              </p>
+                            </div>
+                          )}
                         </Card>
                       ))}
                     </div>

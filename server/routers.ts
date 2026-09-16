@@ -3,7 +3,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getDb } from "./db";
-import { categories, products, productVariants, orders, orderItems, userAddresses, productReviews, productBundles, bundleItems } from "../drizzle/schema";
+import { categories, products, productVariants, orders, orderItems, userAddresses, productReviews, productBundles, bundleItems, users } from "../drizzle/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { COOKIE_NAME } from "../shared/const";
 import { createPaymentPreference } from "./_core/mercadoPago";
@@ -497,8 +497,13 @@ export const appRouter = router({
         const allProducts = await db.select().from(products);
         const productMap = new Map(allProducts.map((p) => [p.id, p]));
 
+        const addressIds = Array.from(new Set(userOrders.map((o) => o.addressId)));
+        const allAddresses = await db.select().from(userAddresses);
+        const addressMap = new Map(allAddresses.map((a) => [a.id, a]));
+
         return userOrders.map((order) => ({
           ...order,
+          address: addressMap.get(order.addressId) ?? null,
           items: allItems
             .filter((item) => item.orderId === order.id)
             .map((item) => ({
@@ -511,6 +516,60 @@ export const appRouter = router({
         return [];
       }
     }),
+
+    // Visão completa para o admin: todos os pedidos de todos os clientes,
+    // com contato e endereço de entrega, para conseguir despachar o produto.
+    adminList: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+      const db = await getDb();
+      if (!db) return [];
+      try {
+        const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+        if (allOrders.length === 0) return [];
+
+        const allItems = await db.select().from(orderItems);
+        const allProducts = await db.select().from(products);
+        const allUsers = await db.select().from(users);
+        const allAddresses = await db.select().from(userAddresses);
+
+        const productMap = new Map(allProducts.map((p) => [p.id, p]));
+        const userMap = new Map(allUsers.map((u) => [u.id, u]));
+        const addressMap = new Map(allAddresses.map((a) => [a.id, a]));
+
+        return allOrders.map((order) => ({
+          ...order,
+          customer: userMap.get(order.userId) ?? null,
+          address: addressMap.get(order.addressId) ?? null,
+          items: allItems
+            .filter((item) => item.orderId === order.id)
+            .map((item) => ({
+              ...item,
+              productName: productMap.get(item.productId)?.name ?? `Produto #${item.productId}`,
+            })),
+        }));
+      } catch (error) {
+        console.error("Error fetching admin orders:", error);
+        return [];
+      }
+    }),
+
+    adminUpdateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled']),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized');
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+        try {
+          await db.update(orders).set({ status: input.status }).where(eq(orders.id, input.id));
+          return { success: true };
+        } catch (error) {
+          console.error("Error updating order status:", error);
+          throw error;
+        }
+      }),
 
     create: protectedProcedure
       .input(z.object({

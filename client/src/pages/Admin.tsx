@@ -78,6 +78,24 @@ function SortableProductRow({
   );
 }
 
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: "Aguardando Pagamento",
+  paid: "Pago",
+  processing: "Processando",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+};
+
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-700",
+  paid: "bg-green-100 text-green-700",
+  processing: "bg-blue-100 text-blue-700",
+  shipped: "bg-blue-100 text-blue-700",
+  delivered: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
+
 export default function Admin() {
   const { user } = useAuth();
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
@@ -115,6 +133,20 @@ export default function Admin() {
 
   const allProducts = trpc.products.adminGetAll.useQuery(undefined, {
     enabled: user?.role === "admin",
+  });
+
+  const allOrders = trpc.orders.adminList.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
+
+  const updateOrderStatus = trpc.orders.adminUpdateStatus.useMutation({
+    onSuccess: () => {
+      toast.success("Status do pedido atualizado!");
+      allOrders.refetch();
+    },
+    onError: (error) => {
+      toast.error(`Erro ao atualizar status: ${error.message}`);
+    },
   });
 
   const createProduct = trpc.products.adminCreate.useMutation({
@@ -392,8 +424,9 @@ export default function Admin() {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-slate-purple mb-8">Painel de Administração</h1>
 
-        <Tabs defaultValue="products" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="orders" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="orders">Pedidos</TabsTrigger>
             <TabsTrigger value="products">Produtos</TabsTrigger>
             <TabsTrigger value="variations">Variações</TabsTrigger>
             <TabsTrigger value="bundles">Bundles</TabsTrigger>
@@ -401,6 +434,98 @@ export default function Admin() {
           </TabsList>
 
           {/* Aba Produtos */}
+          <TabsContent value="orders" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pedidos ({allOrders.data?.length ?? 0})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {allOrders.isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                  </div>
+                ) : !allOrders.data || allOrders.data.length === 0 ? (
+                  <p className="text-muted-foreground">Nenhum pedido ainda.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {allOrders.data.map((order: any) => (
+                      <div key={order.id} className="border rounded-lg p-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
+                          <div>
+                            <p className="font-semibold text-foreground">{order.orderNumber}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(order.createdAt).toLocaleDateString("pt-BR")} às{" "}
+                              {new Date(order.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-accent">
+                              R$ {parseFloat(order.totalAmount).toFixed(2)}
+                            </span>
+                            <Select
+                              value={order.status}
+                              onValueChange={(value) =>
+                                updateOrderStatus.mutate({ id: order.id, status: value as any })
+                              }
+                            >
+                              <SelectTrigger className={`w-44 h-8 text-xs ${ORDER_STATUS_COLORS[order.status] ?? ""}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(ORDER_STATUS_LABELS).map(([value, label]) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground mb-1">Cliente</p>
+                            <p className="text-foreground">
+                              {order.customer?.name || order.address?.fullName || "Não informado"}
+                            </p>
+                            <p className="text-foreground">{order.customer?.email || "-"}</p>
+                            {order.address?.phone && (
+                              <p className="text-foreground">{order.address.phone}</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground mb-1">Endereço de entrega</p>
+                            {order.address ? (
+                              <p className="text-foreground">
+                                {order.address.street}, {order.address.number}
+                                {order.address.complement ? ` - ${order.address.complement}` : ""}
+                                <br />
+                                {order.address.city} - {order.address.state}, {order.address.cep}
+                              </p>
+                            ) : (
+                              <p className="text-muted-foreground">Não informado</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-muted-foreground text-sm mb-2">Itens</p>
+                          <div className="flex flex-wrap gap-2">
+                            {order.items.map((item: any, idx: number) => (
+                              <span key={idx} className="text-xs bg-muted text-foreground px-3 py-1 rounded">
+                                {item.productName} {item.quantity > 1 ? `(${item.quantity}x)` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="products" className="space-y-6">
             <Card>
               <CardHeader>
