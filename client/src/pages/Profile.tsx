@@ -4,8 +4,27 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { User, MapPin, ShoppingBag, LogOut, Edit2, Trash2 } from "lucide-react";
+import { User, MapPin, ShoppingBag, LogOut, Edit2, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: "Aguardando Pagamento",
+  paid: "Pago",
+  processing: "Processando",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  cancelled: "Cancelado",
+};
+
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-700",
+  paid: "bg-green-100 text-green-700",
+  processing: "bg-blue-100 text-blue-700",
+  shipped: "bg-blue-100 text-blue-700",
+  delivered: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -16,23 +35,8 @@ export default function Profile() {
     phone: "",
   });
 
-  // Mock data
-  const orders = [
-    {
-      id: "PED-001",
-      date: "2026-07-05",
-      total: 219.80,
-      status: "Entregue",
-      items: ["Sérum Facial Colágeno", "Sérum Corporal Retinol"],
-    },
-    {
-      id: "PED-002",
-      date: "2026-06-28",
-      total: 89.90,
-      status: "Em Trânsito",
-      items: ["Máscara Facial Hidratante"],
-    },
-  ];
+  // Pedidos reais do cliente logado
+  const { data: orders = [], isLoading: isLoadingOrders } = trpc.orders.list.useQuery();
 
   const addresses = [
     {
@@ -233,48 +237,58 @@ export default function Profile() {
 
                 {/* Orders Tab */}
                 <TabsContent value="orders" className="mt-8">
-                  <div className="space-y-4">
-                    {orders.map((order) => (
-                      <Card key={order.id} className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="font-semibold text-foreground">{order.id}</h3>
-                            <p className="text-sm text-muted-foreground">{order.date}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-accent">
-                              R$ {order.total.toFixed(2)}
-                            </p>
-                            <span
-                              className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                                order.status === "Entregue"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-blue-100 text-blue-700"
-                              }`}
-                            >
-                              {order.status}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mb-4 pb-4 border-t border-border pt-4">
-                          <p className="text-sm text-muted-foreground mb-2">Itens:</p>
-                          <div className="flex flex-wrap gap-2">
-                            {order.items.map((item, idx) => (
+                  {isLoadingOrders ? (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                    </div>
+                  ) : orders.length === 0 ? (
+                    <div className="text-center py-12">
+                      <ShoppingBag className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground">
+                        Você ainda não fez nenhum pedido.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {orders.map((order: any) => (
+                        <Card key={order.id} className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <h3 className="font-semibold text-foreground">{order.orderNumber}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(order.createdAt).toLocaleDateString("pt-BR")}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-accent">
+                                R$ {parseFloat(order.totalAmount).toFixed(2)}
+                              </p>
                               <span
-                                key={idx}
-                                className="text-xs bg-muted text-foreground px-3 py-1 rounded"
+                                className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                                  ORDER_STATUS_COLORS[order.status] ?? "bg-muted text-foreground"
+                                }`}
                               >
-                                {item}
+                                {ORDER_STATUS_LABELS[order.status] ?? order.status}
                               </span>
-                            ))}
+                            </div>
                           </div>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          Ver Detalhes
-                        </Button>
-                      </Card>
-                    ))}
-                  </div>
+                          <div className="mb-4 pb-4 border-t border-border pt-4">
+                            <p className="text-sm text-muted-foreground mb-2">Itens:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {order.items.map((item: any, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="text-xs bg-muted text-foreground px-3 py-1 rounded"
+                                >
+                                  {item.productName} {item.quantity > 1 ? `(${item.quantity}x)` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
 
                 {/* Addresses Tab */}

@@ -485,12 +485,27 @@ export const appRouter = router({
       const db = await getDb();
       if (!db) return [];
       try {
-        const result = await db
+        const userOrders = await db
           .select()
           .from(orders)
           .where(eq(orders.userId, ctx.user.id))
           .orderBy(desc(orders.createdAt));
-        return result;
+
+        if (userOrders.length === 0) return [];
+
+        const allItems = await db.select().from(orderItems);
+        const allProducts = await db.select().from(products);
+        const productMap = new Map(allProducts.map((p) => [p.id, p]));
+
+        return userOrders.map((order) => ({
+          ...order,
+          items: allItems
+            .filter((item) => item.orderId === order.id)
+            .map((item) => ({
+              ...item,
+              productName: productMap.get(item.productId)?.name ?? `Produto #${item.productId}`,
+            })),
+        }));
       } catch (error) {
         console.error("Error fetching orders:", error);
         return [];
