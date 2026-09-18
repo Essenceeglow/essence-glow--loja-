@@ -14,6 +14,9 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Looks from "./pages/Looks";
+import OrderSuccess from "./pages/OrderSuccess";
+import OrderFailure from "./pages/OrderFailure";
+import OrderPending from "./pages/OrderPending";
 import Header from "./components/Header";
 import CartDrawer from "./components/CartDrawer";
 import Footer from "./components/Footer";
@@ -119,6 +122,9 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/login" component={Login} />
           <Route path="/looks" component={Looks} />
+          <Route path="/checkout/sucesso" component={OrderSuccess} />
+          <Route path="/checkout/erro" component={OrderFailure} />
+          <Route path="/checkout/pendente" component={OrderPending} />
           <Route path="/catalog" component={Catalog} />
           <Route path="/product/:id" component={ProductDetail} />
           <Route path="/profile" component={Profile} />
