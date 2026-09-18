@@ -11,4 +11,6 @@ export const ENV = {
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? "",
   mercadoPagoAccessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
   publicSiteUrl: process.env.PUBLIC_SITE_URL ?? "",
+  resendApiKey: process.env.RESEND_API_KEY ?? "",
+  notificationEmail: process.env.NOTIFICATION_EMAIL ?? "",
 };

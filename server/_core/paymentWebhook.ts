@@ -1,8 +1,9 @@
 import type { Express, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { getDb } from "../db";
-import { orders } from "../../drizzle/schema";
+import { orders, orderItems, products, users } from "../../drizzle/schema";
 import { getPaymentStatus } from "./mercadoPago";
+import { notifyNewSale } from "./emailNotifications";
 
 /**
  * Registra a rota que o Mercado Pago chama automaticamente para avisar
@@ -47,7 +48,30 @@ export function registerPaymentWebhook(app: Express) {
       if (newStatus) {
         const db = await getDb();
         if (db) {
+          const [currentOrder] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+          const wasAlreadyPaid = currentOrder?.status === "paid";
+
           await db.update(orders).set({ status: newStatus }).where(eq(orders.id, orderId));
+
+          // Só notifica na primeira vez que o pedido vira "pago" (evita e-mail duplicado
+          // se o Mercado Pago reenviar o mesmo aviso, o que é comum acontecer).
+          if (newStatus === "paid" && !wasAlreadyPaid && currentOrder) {
+            const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+            const allProducts = await db.select().from(products);
+            const productMap = new Map(allProducts.map((p) => [p.id, p]));
+            const [customer] = await db.select().from(users).where(eq(users.id, currentOrder.userId)).limit(1);
+
+            await notifyNewSale({
+              orderNumber: currentOrder.orderNumber,
+              totalAmount: String(currentOrder.totalAmount),
+              customerName: customer?.name,
+              customerEmail: customer?.email,
+              items: items.map((i) => ({
+                productName: productMap.get(i.productId)?.name ?? `Produto #${i.productId}`,
+                quantity: i.quantity,
+              })),
+            });
+          }
         }
       }
 
