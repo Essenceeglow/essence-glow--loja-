@@ -41,7 +41,8 @@ export default function Checkout() {
   const createPreference = trpc.payments.createPreference.useMutation();
 
   const subtotal = cartItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
-  const shipping = subtotal >= 100 || subtotal === 0 ? 0 : 15;
+  // TEMPORÁRIO: frete zerado só para teste de pagamento real. Lembrar de reverter depois!
+  const shipping: number = 0;
   const total = subtotal + shipping;
 
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
