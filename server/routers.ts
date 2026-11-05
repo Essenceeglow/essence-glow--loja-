@@ -1,11 +1,9 @@
-import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { getDb } from "./db";
 import { categories, products, productVariants, orders, orderItems, userAddresses, productReviews, productBundles, bundleItems, users } from "../drizzle/schema";
 import { eq, desc, and } from "drizzle-orm";
-import { COOKIE_NAME } from "../shared/const";
 import { createPaymentPreference } from "./_core/mercadoPago";
 
 export const appRouter = router({
@@ -13,11 +11,8 @@ export const appRouter = router({
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return { success: true } as const;
-    }),
+    // A sessão fica no Supabase Auth (no navegador); não há cookie no servidor.
+    logout: publicProcedure.mutation(() => ({ success: true } as const)),
   }),
 
   products: router({

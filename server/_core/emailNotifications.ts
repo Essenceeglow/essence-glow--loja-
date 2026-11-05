@@ -1,9 +1,7 @@
-import { Resend } from "resend";
 import { ENV } from "./env";
 
-function getClient() {
-  if (!ENV.resendApiKey || !ENV.notificationEmail) return null;
-  return new Resend(ENV.resendApiKey);
+function isConfigured() {
+  return Boolean(ENV.resendApiKey && ENV.notificationEmail);
 }
 
 /**
@@ -18,15 +16,20 @@ export async function notifyNewSale(params: {
   customerEmail?: string | null;
   items: { productName: string; quantity: number }[];
 }) {
-  const client = getClient();
-  if (!client) return;
+  if (!isConfigured()) return;
 
   try {
     const itemsList = params.items
       .map((i) => `- ${i.productName} (${i.quantity}x)`)
       .join("\n");
 
-    await client.emails.send({
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ENV.resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
       from: "Essence & Glow <onboarding@resend.dev>",
       to: ENV.notificationEmail,
       subject: `🎉 Nova venda: ${params.orderNumber} - R$ ${params.totalAmount}`,
@@ -41,7 +44,11 @@ Itens:
 ${itemsList}
 
 Acesse o painel /admin para ver todos os detalhes e o endereço de entrega.`,
+      }),
     });
+    if (!res.ok) {
+      console.error("[Email] Resend respondeu erro:", res.status, await res.text().catch(() => ""));
+    }
   } catch (error) {
     // Nunca deixa uma falha de e-mail travar a confirmação do pagamento.
     console.error("[Email] Falha ao enviar notificação de venda:", error);

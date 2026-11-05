@@ -5,6 +5,8 @@ import type { TrpcContext } from "./context";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  // Não expõe detalhes internos (stack) nas respostas de erro da API.
+  isDev: false,
 });
 
 export const router = t.router;
