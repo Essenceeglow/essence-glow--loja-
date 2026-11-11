@@ -98,3 +98,4 @@ O código já usa o Hyperdrive automaticamente se o binding existir.
 ## Limite do plano grátis
 
 O Workers grátis permite **10 ms de CPU por requisição** (tempo esperando o banco não conta) e 100 mil requisições por dia. Se alguma rota estourar o limite, o Cloudflare responde com erro 1102. O plano pago (US$ 5/mês) tira esse limite.
+
