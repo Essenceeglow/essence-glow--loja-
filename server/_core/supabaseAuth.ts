@@ -1,12 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
 import { ENV } from "./env";
-
-// Cliente Supabase usado apenas para validar o token de acesso enviado
-// pelo navegador (Authorization: Bearer <token>). A chave "anon" é pública
-// por design e suficiente para chamar auth.getUser(token).
-const supabaseAdmin = ENV.supabaseUrl && ENV.supabaseAnonKey
-  ? createClient(ENV.supabaseUrl, ENV.supabaseAnonKey)
-  : null;
 
 export type SupabaseVerifiedUser = {
   id: string; // uuid do usuário no Supabase Auth
@@ -15,37 +7,41 @@ export type SupabaseVerifiedUser = {
 };
 
 /**
- * Verifica um access token do Supabase Auth e retorna os dados básicos
- * do usuário autenticado, ou null se o token for inválido/ausente.
+ * Verifica um access token do Supabase Auth (enviado pelo navegador em
+ * Authorization: Bearer <token>) e devolve os dados básicos do usuário,
+ * ou null se o token for inválido/ausente.
+ * Usa a API REST do Supabase direto (a chave "anon" é pública por design).
  */
 export async function verifySupabaseToken(
   token: string | undefined | null
 ): Promise<SupabaseVerifiedUser | null> {
   if (!token) return null;
 
-  if (!supabaseAdmin) {
-    console.error(
-      "[SupabaseAuth] SUPABASE_URL / SUPABASE_ANON_KEY não configurados no servidor."
-    );
+  if (!ENV.supabaseUrl || !ENV.supabaseAnonKey) {
+    console.error("[SupabaseAuth] SUPABASE_URL / SUPABASE_ANON_KEY não configurados.");
     return null;
   }
 
   try {
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !data.user) {
-      return null;
-    }
+    const res = await fetch(`${ENV.supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: ENV.supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) return null;
 
-    const name =
-      (data.user.user_metadata?.name as string | undefined) ??
-      (data.user.user_metadata?.full_name as string | undefined) ??
-      data.user.email ??
-      null;
+    const user = (await res.json()) as {
+      id?: string;
+      email?: string | null;
+      user_metadata?: { name?: string; full_name?: string };
+    };
+    if (!user?.id) return null;
 
     return {
-      id: data.user.id,
-      email: data.user.email ?? null,
-      name,
+      id: user.id,
+      email: user.email ?? null,
+      name: user.user_metadata?.name ?? user.user_metadata?.full_name ?? user.email ?? null,
     };
   } catch (error) {
     console.warn("[SupabaseAuth] Falha ao verificar token:", error);
