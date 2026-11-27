@@ -204,7 +204,7 @@ export default function Home() {
               >
                 <Card className="group cursor-pointer hover:shadow-soft transition-smooth overflow-hidden h-full">
                   <div
-                    className={`relative bg-gradient-to-br ${category.color} h-40 flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform`}
+                    className={`relative bg-gradient-to-br ${category.color} aspect-square w-full flex items-center justify-center overflow-hidden group-hover:scale-105 transition-transform`}
                   >
                     <Sparkles className="w-12 h-12 text-white/90" strokeWidth={1.5} />
                     <img
