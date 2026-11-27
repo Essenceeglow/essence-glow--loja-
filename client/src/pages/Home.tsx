@@ -2,16 +2,43 @@ import { Link } from "wouter";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ShoppingBag, Leaf, Droplet, Smile, HeartHandshake, Heart, Sparkles, Loader2 } from "lucide-react";
+import { ShoppingBag, Leaf, Droplet, Smile, HeartHandshake, Heart, Sparkles, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 
+const heroBanners = [
+  {
+    src: "/images/hero-esfoliantes.jpg",
+    alt: "Essence & Glow: esfoliantes corporais Porán Bem Me Quero Frutas nos sabores pitaya, melancia, manga rosa e pêssego",
+  },
+  {
+    src: "/images/hero-cuidados.jpg",
+    alt: "Essence & Glow: beleza, hidratação e perfume em uma só rotina de autocuidado",
+  },
+];
+
 export default function Home() {
+  // Carrossel do banner principal
+  const [bannerIndex, setBannerIndex] = React.useState(0);
+  const [bannerPaused, setBannerPaused] = React.useState(false);
+  const touchStartX = React.useRef<number | null>(null);
+
+  const goToBanner = (index: number) =>
+    setBannerIndex((index + heroBanners.length) % heroBanners.length);
+
+  React.useEffect(() => {
+    if (bannerPaused) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(() => {
+      setBannerIndex((i) => (i + 1) % heroBanners.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [bannerPaused]);
+
   const categories = [
     {
       name: "Skincare",
       description: "Cuidados com a pele",
-      image: "/images/skincare-category.jpg",
       color: "from-purple-300 to-pink-300",
     },
   ];
@@ -58,76 +85,100 @@ export default function Home() {
   return (
     <>
       {/* Hero Banner */}
-      <section className="gradient-transcendent py-16 md:py-20 overflow-hidden">
+      <section className="gradient-transcendent py-6 md:py-10 overflow-hidden">
         <div className="container">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div className="spacious">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-px flex-1 max-w-8 bg-accent/40" />
-                <span className="text-xs md:text-sm font-semibold tracking-widest text-accent uppercase">
-                  Cuidado que realça sua melhor versão
-                </span>
-                <div className="h-px flex-1 max-w-8 bg-accent/40" />
-              </div>
-
-              <h1 className="text-4xl md:text-5xl font-serif font-bold mb-4 leading-tight">
-                <span className="text-foreground">Beleza e Elegância</span>
-                <br />
-                <span className="text-accent">em Cada Detalhe</span>
-              </h1>
-
-              <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-                Descubra nossa coleção exclusiva de skincare. Produtos selecionados
-                com cuidado para você{" "}
-                <span className="font-semibold text-foreground">se sentir incrível</span>,
-                todos os dias.
-              </p>
-
-              <div className="flex gap-4 mb-10">
-                <Link href="/catalog">
-                  <Button
-                    size="lg"
-                    className="gap-2 bg-pink-600 text-white hover:bg-pink-700"
+          <div
+            className="relative"
+            onMouseEnter={() => setBannerPaused(true)}
+            onMouseLeave={() => setBannerPaused(false)}
+            onTouchStart={(e) => {
+              setBannerPaused(true);
+              touchStartX.current = e.touches[0].clientX;
+            }}
+            onTouchEnd={(e) => {
+              const start = touchStartX.current;
+              touchStartX.current = null;
+              setBannerPaused(false);
+              if (start === null) return;
+              const delta = e.changedTouches[0].clientX - start;
+              if (Math.abs(delta) > 50) goToBanner(bannerIndex + (delta < 0 ? 1 : -1));
+            }}
+          >
+            <div className="overflow-hidden rounded-2xl shadow-lg">
+              <div
+                className="flex transition-transform duration-700 ease-out"
+                style={{ transform: `translateX(-${bannerIndex * 100}%)` }}
+              >
+                {heroBanners.map((banner, i) => (
+                  <Link
+                    key={banner.src}
+                    href="/catalog"
+                    className="block w-full shrink-0"
+                    aria-hidden={i !== bannerIndex}
+                    tabIndex={i !== bannerIndex ? -1 : 0}
                   >
-                    <ShoppingBag className="w-5 h-5" />
-                    Explorar Catálogo
-                  </Button>
-                </Link>
-                <Link href="/looks">
-                  <Button size="lg" variant="outline">
-                    Compre o Look
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {features.map((feature) => (
-                  <div key={feature.label} className="flex flex-col items-center text-center gap-2">
-                    <feature.icon className="w-6 h-6 text-accent" strokeWidth={1.5} />
-                    <span className="text-xs font-medium text-muted-foreground leading-tight">
-                      {feature.label}
-                    </span>
-                  </div>
+                    <img
+                      src={banner.src}
+                      alt={banner.alt}
+                      width={1166}
+                      height={695}
+                      className="block w-full h-auto"
+                      loading={i === 0 ? "eager" : "lazy"}
+                      fetchPriority={i === 0 ? "high" : undefined}
+                    />
+                  </Link>
                 ))}
               </div>
             </div>
 
-            <div className="relative">
-              <img
-                src="/images/hero-products.jpg"
-                alt="Produtos Essence & Glow"
-                className="w-full h-auto rounded-2xl shadow-lg object-cover"
-              />
+            <button
+              type="button"
+              onClick={() => goToBanner(bannerIndex - 1)}
+              aria-label="Banner anterior"
+              className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow items-center justify-center text-pink-700 transition-smooth"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => goToBanner(bannerIndex + 1)}
+              aria-label="Próximo banner"
+              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 hover:bg-white shadow items-center justify-center text-pink-700 transition-smooth"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+              {heroBanners.map((banner, i) => (
+                <button
+                  key={banner.src}
+                  type="button"
+                  onClick={() => goToBanner(i)}
+                  aria-label={`Ir para o banner ${i + 1}`}
+                  aria-current={i === bannerIndex}
+                  className={`h-2.5 rounded-full transition-all ${
+                    i === bannerIndex ? "w-6 bg-pink-700" : "w-2.5 bg-white/80 hover:bg-white"
+                  }`}
+                />
+              ))}
             </div>
           </div>
 
-          <div className="flex justify-center mt-12">
-            <div className="inline-flex items-center gap-2 bg-card border border-accent/20 rounded-full px-6 py-3 shadow-sm">
-              <Heart className="w-4 h-4 text-accent" fill="currentColor" />
-              <span className="text-sm text-muted-foreground">
-                Um ritual diário de <span className="font-bold text-accent">amor</span> por você
-              </span>
-            </div>
+          <div className="flex flex-wrap justify-center gap-4 mt-6 md:mt-8">
+            <Link href="/catalog">
+              <Button
+                size="lg"
+                className="gap-2 bg-pink-600 text-white hover:bg-pink-700"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                Explorar Catálogo
+              </Button>
+            </Link>
+            <Link href="/looks">
+              <Button size="lg" variant="outline">
+                Compre o Look
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -154,11 +205,7 @@ export default function Home() {
                   <div
                     className={`bg-gradient-to-br ${category.color} h-40 flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform`}
                   >
-                    <img
-                      src={category.image}
-                      alt={category.name}
-                      className="w-full h-full object-cover"
-                    />
+                    <Sparkles className="w-12 h-12 text-white/90" strokeWidth={1.5} />
                   </div>
                   <div className="p-6">
                     <h3 className="font-serif text-xl font-bold text-foreground mb-2">
