@@ -1,0 +1,9 @@
+# Copie para .dev.vars (não vai para o GitHub) para rodar localmente com "npm run dev:api"
+DATABASE_URL=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+OWNER_OPEN_ID=
+MERCADOPAGO_ACCESS_TOKEN=
+PUBLIC_SITE_URL=http://localhost:5173
+RESEND_API_KEY=
+NOTIFICATION_EMAIL=

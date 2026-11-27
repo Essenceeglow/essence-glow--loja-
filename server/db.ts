@@ -4,21 +4,37 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { getStore } from './_core/runtime';
 
-let _db: ReturnType<typeof drizzle> | null = null;
-
-// Lazily create the drizzle instance so local tooling can run without a DB.
+// Cria (uma vez por requisição) a conexão com o banco do Supabase.
+// No Cloudflare Workers a conexão não pode ser reaproveitada entre requisições.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      const client = postgres(process.env.DATABASE_URL, { prepare: false });
-      _db = drizzle(client);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
+  const store = getStore();
+  if (!store) return null;
+  if (store.db) return store.db;
+
+  const connectionString = store.env.HYPERDRIVE?.connectionString ?? store.env.DATABASE_URL;
+  if (!connectionString) return null;
+
+  try {
+    const client = postgres(connectionString, {
+      max: 5,
+      prepare: false, // compatível com o pooler do Supabase
+      fetch_types: false,
+    });
+    store.sql = client;
+    store.db = drizzle(client);
+    return store.db;
+  } catch (error) {
+    console.warn("[Database] Failed to connect:", error);
+    return null;
   }
-  return _db;
+}
+
+/** Fecha a conexão da requisição atual (chamar no fim, via waitUntil). */
+export function closeDb(): Promise<unknown> {
+  const sql = getStore()?.sql;
+  return sql ? sql.end({ timeout: 2 }).catch(() => undefined) : Promise.resolve();
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
