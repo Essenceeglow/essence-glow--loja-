@@ -39,6 +39,7 @@ export default function Home() {
     {
       name: "Skincare",
       description: "Cuidados com a pele",
+      image: "/images/skincare-category.jpg",
       color: "from-purple-300 to-pink-300",
     },
   ];
@@ -88,7 +89,7 @@ export default function Home() {
       <section className="gradient-transcendent py-6 md:py-10 overflow-hidden">
         <div className="container">
           <div
-            className="relative"
+            className="relative mx-auto max-w-4xl"
             onMouseEnter={() => setBannerPaused(true)}
             onMouseLeave={() => setBannerPaused(false)}
             onTouchStart={(e) => {
@@ -104,7 +105,7 @@ export default function Home() {
               if (Math.abs(delta) > 50) goToBanner(bannerIndex + (delta < 0 ? 1 : -1));
             }}
           >
-            <div className="overflow-hidden rounded-2xl shadow-lg">
+            <div className="overflow-hidden rounded-3xl md:rounded-[2.5rem] shadow-lg">
               <div
                 className="flex transition-transform duration-700 ease-out"
                 style={{ transform: `translateX(-${bannerIndex * 100}%)` }}
@@ -203,9 +204,18 @@ export default function Home() {
               >
                 <Card className="group cursor-pointer hover:shadow-soft transition-smooth overflow-hidden h-full">
                   <div
-                    className={`bg-gradient-to-br ${category.color} h-40 flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform`}
+                    className={`relative bg-gradient-to-br ${category.color} h-40 flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform`}
                   >
                     <Sparkles className="w-12 h-12 text-white/90" strokeWidth={1.5} />
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        // Sem imagem enviada ainda: mantém o fundo rosa com o ícone.
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
                   </div>
                   <div className="p-6">
                     <h3 className="font-serif text-xl font-bold text-foreground mb-2">
